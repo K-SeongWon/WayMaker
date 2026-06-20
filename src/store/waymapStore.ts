@@ -8,7 +8,15 @@ import {
   type OnEdgesChange,
   type OnNodesChange,
 } from "@xyflow/react";
-import type { AppNode, DeviceData, DeviceNodeT, Port, ZoneData, ZoneNodeT } from "@/lib/types";
+import type {
+  AppNode,
+  DeviceData,
+  DeviceNodeT,
+  EdgeDetail,
+  Port,
+  ZoneData,
+  ZoneNodeT,
+} from "@/lib/types";
 
 // 장비 노드 id 생성기. 불러오기 후 충돌을 막기 위해 replaceAll에서 카운터를 동기화한다.
 let idCounter = 0;
@@ -26,6 +34,7 @@ interface WayMapState {
   edges: Edge[];
   title: string;
   selectedId: string | null;
+  selectedEdgeId: string | null;
 
   onNodesChange: OnNodesChange<AppNode>;
   onEdgesChange: OnEdgesChange;
@@ -34,7 +43,12 @@ interface WayMapState {
   addDevice: (node: DeviceNodeT) => void;
   addZone: (node: ZoneNodeT) => void;
   setSelectedId: (id: string | null) => void;
+  setSelectedEdgeId: (id: string | null) => void;
   setTitle: (title: string) => void;
+
+  // ── 연결선(케이블) 편집 ──
+  updateEdge: (id: string, patch: Partial<EdgeDetail>) => void;
+  removeEdge: (id: string) => void;
 
   // ── 편집 액션 ──
   updateDevice: (id: string, patch: Partial<DeviceData>) => void;
@@ -55,6 +69,7 @@ export const useWayMapStore = create<WayMapState>((set, get) => ({
   edges: [],
   title: "",
   selectedId: null,
+  selectedEdgeId: null,
 
   onNodesChange: (changes) => set({ nodes: applyNodeChanges(changes, get().nodes) }),
   onEdgesChange: (changes) => set({ edges: applyEdgeChanges(changes, get().edges) }),
@@ -62,8 +77,26 @@ export const useWayMapStore = create<WayMapState>((set, get) => ({
 
   addDevice: (node) => set({ nodes: [...get().nodes, node] }),
   addZone: (node) => set({ nodes: [...get().nodes, node] }),
-  setSelectedId: (id) => set({ selectedId: id }),
+  // 노드/엣지 선택은 상호 배타
+  setSelectedId: (id) => set({ selectedId: id, selectedEdgeId: null }),
+  setSelectedEdgeId: (id) => set({ selectedEdgeId: id, selectedId: null }),
   setTitle: (title) => set({ title }),
+
+  updateEdge: (id, patch) =>
+    set({
+      edges: get().edges.map((e) => {
+        if (e.id !== id) return e;
+        const data = { ...(e.data as EdgeDetail | undefined), ...patch };
+        const dl = typeof data.displayLabel === "string" ? data.displayLabel.trim() : "";
+        return { ...e, data, label: dl || undefined };
+      }),
+    }),
+
+  removeEdge: (id) =>
+    set({
+      edges: get().edges.filter((e) => e.id !== id),
+      selectedEdgeId: get().selectedEdgeId === id ? null : get().selectedEdgeId,
+    }),
 
   updateDevice: (id, patch) =>
     set({
@@ -137,8 +170,9 @@ export const useWayMapStore = create<WayMapState>((set, get) => ({
     }
     idCounter = Math.max(idCounter, maxD);
     zoneCounter = Math.max(zoneCounter, maxZ);
-    set({ nodes, edges, title, selectedId: null });
+    set({ nodes, edges, title, selectedId: null, selectedEdgeId: null });
   },
 
-  clear: () => set({ nodes: [], edges: [], title: "", selectedId: null }),
+  clear: () =>
+    set({ nodes: [], edges: [], title: "", selectedId: null, selectedEdgeId: null }),
 }));

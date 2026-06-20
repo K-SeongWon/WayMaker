@@ -1,6 +1,20 @@
 import type { Edge } from "@xyflow/react";
-import type { AppNode, DeviceNodeT, WayMapDoc, ZoneNodeT } from "./types";
+import type { AppNode, DeviceNodeT, EdgeDetail, WayMapDoc, ZoneNodeT } from "./types";
 import { ZONE_DEFAULT_SIZE } from "./zones";
+
+// 빈 값 제거. 의미 있는 필드가 없으면 undefined 반환(저장에서 생략).
+function cleanDetail(data: unknown): EdgeDetail | undefined {
+  if (!data || typeof data !== "object") return undefined;
+  const d = data as EdgeDetail;
+  const out: EdgeDetail = {};
+  if (d.displayLabel?.trim()) out.displayLabel = d.displayLabel.trim();
+  if (d.deviceLabel?.trim()) out.deviceLabel = d.deviceLabel.trim();
+  if (d.cableConnector) out.cableConnector = d.cableConnector;
+  if (typeof d.cableLength_m === "number" && !Number.isNaN(d.cableLength_m))
+    out.cableLength_m = d.cableLength_m;
+  if (d.note?.trim()) out.note = d.note.trim();
+  return Object.keys(out).length ? out : undefined;
+}
 
 export const WAYMAP_VERSION = "0.1.0";
 export const APP_VERSION = "0.1.0";
@@ -31,11 +45,15 @@ export function serializeWayMap(
       position: { x: Math.round(n.position.x), y: Math.round(n.position.y) },
       ports: n.data.ports,
     })),
-    connections: edges.map((e) => ({
-      id: e.id,
-      from: { deviceId: e.source, portId: e.sourceHandle ?? null },
-      to: { deviceId: e.target, portId: e.targetHandle ?? null },
-    })),
+    connections: edges.map((e) => {
+      const detail = cleanDetail(e.data);
+      return {
+        id: e.id,
+        from: { deviceId: e.source, portId: e.sourceHandle ?? null },
+        to: { deviceId: e.target, portId: e.targetHandle ?? null },
+        ...(detail ? { detail } : {}),
+      };
+    }),
     venue: zones.length
       ? {
           zones: zones.map((z) => ({
@@ -101,6 +119,8 @@ export function deserializeWayMap(doc: unknown): {
     sourceHandle: c.from.portId ?? undefined,
     target: c.to.deviceId,
     targetHandle: c.to.portId ?? undefined,
+    data: c.detail ?? undefined,
+    label: c.detail?.displayLabel || undefined,
   }));
 
   return { nodes: [...zoneNodes, ...deviceNodes], edges, title: d.meta?.title ?? "" };

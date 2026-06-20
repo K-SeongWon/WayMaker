@@ -32,7 +32,18 @@ function Flow() {
   const addDevice = useWayMapStore((s) => s.addDevice);
   const addZone = useWayMapStore((s) => s.addZone);
   const setSelectedId = useWayMapStore((s) => s.setSelectedId);
+  const setSelectedEdgeId = useWayMapStore((s) => s.setSelectedEdgeId);
+  const selectedEdgeId = useWayMapStore((s) => s.selectedEdgeId);
   const { screenToFlowPosition } = useReactFlow();
+
+  // 선택된 연결선 강조(표시용 — 스토어 원본은 그대로)
+  const renderEdges = selectedEdgeId
+    ? edges.map((e) =>
+        e.id === selectedEdgeId
+          ? { ...e, style: { ...e.style, stroke: "#2563eb", strokeWidth: 2.5 } }
+          : e,
+      )
+    : edges;
 
   const onDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -82,13 +93,14 @@ function Flow() {
     <div className="h-full w-full" onDrop={onDrop} onDragOver={onDragOver}>
       <ReactFlow
         nodes={nodes}
-        edges={edges}
+        edges={renderEdges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         connectionMode={ConnectionMode.Loose}
         nodeTypes={nodeTypes}
         onNodeClick={(_, n) => setSelectedId(n.id)}
+        onEdgeClick={(_, e) => setSelectedEdgeId(e.id)}
         onPaneClick={() => setSelectedId(null)}
         fitView
       >

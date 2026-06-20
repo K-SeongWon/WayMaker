@@ -8,7 +8,7 @@ import {
   SIGNAL_OPTIONS,
 } from "@/lib/portOptions";
 import { ZONE_COLOR_OPTIONS } from "@/lib/zones";
-import type { ConnectorType } from "@/lib/types";
+import type { ConnectorType, EdgeDetail } from "@/lib/types";
 
 const field =
   "w-full rounded border border-gray-300 px-2 py-1 text-sm text-gray-800 focus:border-blue-400 focus:outline-none";
@@ -20,17 +20,29 @@ export default function PropertiesPanel() {
   const node = useWayMapStore(
     (s) => s.nodes.find((n) => n.id === s.selectedId) ?? null,
   );
+  const edge = useWayMapStore(
+    (s) => s.edges.find((e) => e.id === s.selectedEdgeId) ?? null,
+  );
+  const nodes = useWayMapStore((s) => s.nodes);
   const updateDevice = useWayMapStore((s) => s.updateDevice);
   const updateZone = useWayMapStore((s) => s.updateZone);
   const removeNode = useWayMapStore((s) => s.removeNode);
   const addPort = useWayMapStore((s) => s.addPort);
   const updatePort = useWayMapStore((s) => s.updatePort);
   const removePort = useWayMapStore((s) => s.removePort);
+  const updateEdge = useWayMapStore((s) => s.updateEdge);
+  const removeEdge = useWayMapStore((s) => s.removeEdge);
 
   const [advanced, setAdvanced] = useState(false);
 
   const device = node && node.type === "device" ? node : null;
   const zone = node && node.type === "zone" ? node : null;
+
+  const ed = (edge?.data ?? {}) as EdgeDetail;
+  const nodeLabel = (id?: string) => {
+    const n = nodes.find((x) => x.id === id);
+    return (n?.data as { label?: string } | undefined)?.label ?? id ?? "?";
+  };
 
   return (
     <aside className="w-72 shrink-0 overflow-y-auto border-l border-gray-200 bg-gray-50 p-3">
@@ -50,10 +62,91 @@ export default function PropertiesPanel() {
         )}
       </div>
 
-      {!node && (
+      {!node && !edge && (
         <p className="text-sm text-gray-400">
-          장비나 장소를 선택하면 정보가 표시됩니다.
+          장비·장소·연결선을 선택하면 정보가 표시됩니다.
         </p>
+      )}
+
+      {/* 연결선(케이블) 편집 */}
+      {edge && (
+        <div className="space-y-3 text-sm">
+          <div>
+            <div className={label}>연결</div>
+            <div className="text-gray-700">
+              {nodeLabel(edge.source)} → {nodeLabel(edge.target)}
+            </div>
+          </div>
+          <div>
+            <div className={label}>표시 라벨 (화면용)</div>
+            <input
+              className={field}
+              value={ed.displayLabel ?? ""}
+              placeholder="예: 메인 좌측"
+              onChange={(e) =>
+                updateEdge(edge.id, { displayLabel: e.target.value || undefined })
+              }
+            />
+          </div>
+          <div>
+            <div className={label}>장비 라벨 (장비에 적힌 표기)</div>
+            <input
+              className={field}
+              value={ed.deviceLabel ?? ""}
+              placeholder="예: OUT L"
+              onChange={(e) =>
+                updateEdge(edge.id, { deviceLabel: e.target.value || undefined })
+              }
+            />
+          </div>
+          <div>
+            <div className={label}>케이블 단자</div>
+            <select
+              className={field}
+              value={ed.cableConnector ?? ""}
+              onChange={(e) =>
+                updateEdge(edge.id, {
+                  cableConnector: (e.target.value as ConnectorType) || undefined,
+                })
+              }
+            >
+              {CONNECTOR_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <div className={label}>케이블 길이 (m)</div>
+            <input
+              type="number"
+              min={0}
+              step={0.5}
+              className={field}
+              value={ed.cableLength_m ?? ""}
+              onChange={(e) =>
+                updateEdge(edge.id, {
+                  cableLength_m:
+                    e.target.value === "" ? undefined : Number(e.target.value),
+                })
+              }
+            />
+          </div>
+          <div>
+            <div className={label}>메모</div>
+            <input
+              className={field}
+              value={ed.note ?? ""}
+              onChange={(e) =>
+                updateEdge(edge.id, { note: e.target.value || undefined })
+              }
+            />
+          </div>
+          <button type="button" onClick={() => removeEdge(edge.id)} className={deleteBtn}>
+            연결 삭제
+          </button>
+        </div>
       )}
 
       {/* 장소(구획) 편집 */}

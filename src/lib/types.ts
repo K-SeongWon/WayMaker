@@ -89,6 +89,16 @@ export type DeviceNodeT = Node<DeviceData, "device">;
 export type ZoneNodeT = Node<ZoneData, "zone">;
 export type AppNode = DeviceNodeT | ZoneNodeT;
 
+// 연결선(케이블) 상세 — 모두 선택. 초보자는 비워두고, 숙련자가 채운다.
+export interface EdgeDetail {
+  displayLabel?: string; // 우리 화면용 라벨
+  deviceLabel?: string; // 장비에 적힌 라벨
+  cableConnector?: ConnectorType; // 케이블 끝 단자
+  cableLength_m?: number;
+  note?: string;
+  [key: string]: unknown;
+}
+
 // ── WayMap 저장 포맷 (PROJECT-PLAN §4) ───────────────────────────
 // 범용 JSON. 우리 웹앱에 다시 불러올 수 있는 표준 문서 형식.
 
@@ -105,6 +115,7 @@ export interface WayMapConnection {
   id: string;
   from: { deviceId: string; portId: string | null };
   to: { deviceId: string; portId: string | null };
+  detail?: EdgeDetail;
 }
 
 export interface WayMapZone {
