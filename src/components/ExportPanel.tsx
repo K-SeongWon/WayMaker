@@ -5,6 +5,8 @@ import { Panel, getNodesBounds, useReactFlow } from "@xyflow/react";
 import { toPng } from "html-to-image";
 import { jsPDF } from "jspdf";
 import { useWayMapStore } from "@/store/waymapStore";
+import { serializeWayMap } from "@/lib/waymap";
+import { buildStandaloneHtml } from "@/lib/exportHtml";
 
 const PAD = 48; // 다이어그램 가장자리 여백(px)
 
@@ -15,9 +17,52 @@ export default function ExportPanel() {
   const { getNodes } = useReactFlow();
   const title = useWayMapStore((s) => s.title);
   const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const safeName =
     title.replace(/[^\w가-힣 -]/g, "").trim() || "waymap";
+
+  function currentHtml(): string | null {
+    const { nodes, edges, title: t } = useWayMapStore.getState();
+    if (!nodes.length) {
+      alert("내보낼 내용이 없습니다. 장비나 장소를 추가하세요.");
+      return null;
+    }
+    return buildStandaloneHtml(serializeWayMap(nodes, edges, t));
+  }
+
+  function onHtml() {
+    const html = currentHtml();
+    if (!html) return;
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${safeName}.html`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function onCopyHtml() {
+    const html = currentHtml();
+    if (!html) return;
+    try {
+      if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            "text/html": new Blob([html], { type: "text/html" }),
+            "text/plain": new Blob([html], { type: "text/plain" }),
+          }),
+        ]);
+      } else {
+        await navigator.clipboard.writeText(html);
+      }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch (e) {
+      alert(`복사 실패: ${e instanceof Error ? e.message : "알 수 없는 오류"}`);
+    }
+  }
 
   // 노드 영역을 1:1로 캡처해 PNG dataURL 반환
   async function capture(): Promise<{ url: string; w: number; h: number } | null> {
@@ -106,6 +151,13 @@ export default function ExportPanel() {
         </button>
         <button type="button" disabled={busy} onClick={() => onPdf("a3")} className={btn}>
           PDF A3
+        </button>
+        <span className="mx-0.5 h-4 w-px self-center bg-gray-200" />
+        <button type="button" disabled={busy} onClick={onHtml} className={btn}>
+          HTML
+        </button>
+        <button type="button" disabled={busy} onClick={onCopyHtml} className={btn}>
+          {copied ? "복사됨" : "HTML 복사"}
         </button>
       </div>
     </Panel>
