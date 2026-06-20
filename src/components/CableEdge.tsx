@@ -85,10 +85,17 @@ export default function CableEdge({
   });
 
   const d = (data ?? {}) as EdgeDetail;
-  const fromX = sourceX + (targetX - sourceX) * 0.18;
-  const fromY = sourceY + (targetY - sourceY) * 0.18;
-  const toX = targetX + (sourceX - targetX) * 0.18;
-  const toY = targetY + (sourceY - targetY) * 0.18;
+  // 케이블 양 끝점에서 고정 거리만큼만 떨어뜨려 끝부분에 스냅(길이와 무관).
+  const dx = targetX - sourceX;
+  const dy = targetY - sourceY;
+  const len = Math.hypot(dx, dy) || 1;
+  const off = Math.min(22, len * 0.4);
+  const ux = dx / len;
+  const uy = dy / len;
+  const fromX = sourceX + ux * off;
+  const fromY = sourceY + uy * off;
+  const toX = targetX - ux * off;
+  const toY = targetY - uy * off;
 
   return (
     <>
