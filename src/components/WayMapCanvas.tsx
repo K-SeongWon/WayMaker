@@ -15,7 +15,7 @@ import {
 import "@xyflow/react/dist/style.css";
 
 import DeviceNode from "./DeviceNode";
-import { PRESETS, type PresetKey } from "@/lib/devicePresets";
+import { getPreset, deviceDataFromPreset } from "@/lib/devices";
 import type { DeviceData } from "@/lib/types";
 import { useWayMapStore, nextDeviceId } from "@/store/waymapStore";
 
@@ -39,8 +39,8 @@ function Flow() {
   const onDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
-      const key = e.dataTransfer.getData("application/waymaker") as PresetKey;
-      const preset = PRESETS[key];
+      const key = e.dataTransfer.getData("application/waymaker");
+      const preset = getPreset(key);
       if (!preset) return;
 
       const position = screenToFlowPosition({ x: e.clientX, y: e.clientY });
@@ -48,7 +48,7 @@ function Flow() {
         id: nextDeviceId(),
         type: "device",
         position,
-        data: { ...preset, ports: preset.ports.map((p) => ({ ...p })) },
+        data: deviceDataFromPreset(preset),
       };
       addDevice(node);
     },

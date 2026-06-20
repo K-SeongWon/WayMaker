@@ -13,13 +13,26 @@ export type SignalType =
 export type ConnectorType =
   | "xlr_m"
   | "xlr_f"
+  | "combo_xlr_trs"
   | "trs"
+  | "ts"
+  | "rca"
+  | "minijack_3p5"
   | "speakon"
-  | "banana"
+  | "banana_binding"
   | "etherCON"
   | "rj45"
+  | "usb_a"
+  | "usb_b"
   | "usb_c"
   | "hdmi"
+  | "sdi_bnc"
+  | "vga"
+  | "toslink"
+  | "midi_din"
+  | "iec_power"
+  | "dc_power"
+  | "euroblock"
   | "unknown";
 
 export interface Port {
@@ -33,13 +46,21 @@ export interface Port {
 
 export type DeviceCategory =
   | "mixer"
-  | "pc"
-  | "speaker"
-  | "instrument"
-  | "di"
-  | "wireless"
   | "stagebox"
-  | "network";
+  | "speaker"
+  | "monitor_speaker"
+  | "subwoofer"
+  | "mic"
+  | "wireless"
+  | "di"
+  | "instrument"
+  | "camera"
+  | "video_mixer"
+  | "video_matrix"
+  | "projector"
+  | "display"
+  | "network"
+  | "pc";
 
 /**
  * React Flow 노드의 data 페이로드.

@@ -2,6 +2,7 @@
 
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import type { DeviceData, Port } from "@/lib/types";
+import CategoryIcon, { CATEGORY_STYLE } from "./CategoryIcon";
 
 // 포트 방향은 신호 흐름(M6 애니메이션)의 핵심 메타데이터다.
 //  - in   : 입력  → 왼쪽 target 핸들 (emerald)
@@ -20,15 +21,24 @@ const HANDLE_BASE = "!h-2.5 !w-2.5 !border-2 !border-white";
 export default function DeviceNode({ data, selected }: NodeProps<Node<DeviceData>>) {
   const left = data.ports.filter((p) => p.direction === "in");
   const right = data.ports.filter((p) => p.direction !== "in"); // out + bidi
+  const style = CATEGORY_STYLE[data.category] ?? CATEGORY_STYLE.pc;
+
+  // 포트가 많은 장비(예: X32)는 노드 높이를 포트 수에 맞춰 키운다.
+  const rows = Math.max(left.length, right.length);
+  const minHeight = 44 + rows * 16;
 
   return (
     <div
-      className={`min-w-[150px] rounded-lg border bg-white text-xs shadow-sm transition-colors ${
+      className={`min-w-[170px] rounded-lg border bg-white text-xs shadow-sm transition-colors ${
         selected ? "border-blue-500 ring-2 ring-blue-300" : "border-gray-300"
       }`}
+      style={{ minHeight }}
     >
-      <div className="rounded-t-lg border-b border-gray-200 bg-gray-50 px-3 py-1.5 font-semibold text-gray-800">
-        {data.label}
+      <div
+        className={`flex items-center gap-1.5 rounded-t-lg border-b border-gray-200 px-2 py-1.5 font-semibold ${style.header}`}
+      >
+        <CategoryIcon category={data.category} className={style.icon} />
+        <span className="truncate">{data.label}</span>
       </div>
 
       <div className="flex justify-between gap-4 px-3 py-2">
