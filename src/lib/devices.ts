@@ -325,25 +325,14 @@ export const DEVICE_PRESETS: DevicePreset[] = [
 
   // ── 네트워크 / 익스텐더 ──
   {
-    key: "xlr-lan-extender-tx",
-    model: "4ch XLR 랜 익스텐더 — 송신부",
+    key: "xlr-lan-extender",
+    model: "4ch XLR 랜 익스텐더",
     category: "network",
     confidence: "low",
-    note: "XLR 마이크 4채널을 Cat5(RJ45) 한 가닥으로 전송하는 익스텐더의 송신부.",
+    note: "XLR 마이크 4채널을 Cat5(RJ45) 한 가닥으로 연장. 입출력 구분 없음 — 각 XLR 단자의 암/수만 개별 설정. 두 대를 RJ45로 연결해 사용.",
     ports: [
-      { name: "XLR IN", direction: "in", signal: "analog_audio", connector: "xlr_f", count: 4 },
-      { name: "RJ45 (전송)", direction: "out", signal: "analog_audio", connector: "rj45" },
-    ],
-  },
-  {
-    key: "xlr-lan-extender-rx",
-    model: "4ch XLR 랜 익스텐더 — 수신부",
-    category: "network",
-    confidence: "low",
-    note: "송신부에서 받은 Cat5(RJ45)를 다시 XLR 4채널로 분배하는 수신부.",
-    ports: [
-      { name: "RJ45 (수신)", direction: "in", signal: "analog_audio", connector: "rj45" },
-      { name: "XLR OUT", direction: "out", signal: "analog_audio", connector: "xlr_m", count: 4 },
+      { name: "XLR", direction: "bidi", signal: "analog_audio", connector: "xlr_f", count: 4 },
+      { name: "RJ45 (Cat5)", direction: "bidi", signal: "network", connector: "rj45" },
     ],
   },
 ];

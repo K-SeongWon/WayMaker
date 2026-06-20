@@ -274,58 +274,62 @@ export default function PropertiesPanel() {
                     </button>
                   </div>
 
-                  <select
-                    className={field}
-                    value={p.direction}
-                    onChange={(e) =>
-                      updatePort(device.id, p.id, {
-                        direction: e.target
-                          .value as (typeof DIRECTION_OPTIONS)[number]["value"],
-                      })
-                    }
-                  >
-                    {DIRECTION_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <select
+                      className={field}
+                      value={p.direction}
+                      title="입력 / 출력 / 데이터(양방향)"
+                      onChange={(e) =>
+                        updatePort(device.id, p.id, {
+                          direction: e.target
+                            .value as (typeof DIRECTION_OPTIONS)[number]["value"],
+                        })
+                      }
+                    >
+                      {DIRECTION_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+
+                    {/* 단자(암/수 등) — 기본 항목으로 노출 */}
+                    <select
+                      className={field}
+                      value={p.connector ?? ""}
+                      title="단자 모양"
+                      onChange={(e) =>
+                        updatePort(device.id, p.id, {
+                          connector: (e.target.value as ConnectorType) || undefined,
+                        })
+                      }
+                    >
+                      {CONNECTOR_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
                   {advanced && (
-                    <>
-                      <select
-                        className={field}
-                        value={p.signal}
-                        onChange={(e) =>
-                          updatePort(device.id, p.id, {
-                            signal: e.target
-                              .value as (typeof SIGNAL_OPTIONS)[number]["value"],
-                          })
-                        }
-                      >
-                        {SIGNAL_OPTIONS.map((o) => (
-                          <option key={o.value} value={o.value}>
-                            {o.label}
-                          </option>
-                        ))}
-                      </select>
-
-                      <select
-                        className={field}
-                        value={p.connector ?? ""}
-                        onChange={(e) =>
-                          updatePort(device.id, p.id, {
-                            connector: (e.target.value as ConnectorType) || undefined,
-                          })
-                        }
-                      >
-                        {CONNECTOR_OPTIONS.map((o) => (
-                          <option key={o.value} value={o.value}>
-                            {o.label}
-                          </option>
-                        ))}
-                      </select>
-                    </>
+                    <select
+                      className={field}
+                      value={p.signal}
+                      title="신호 종류"
+                      onChange={(e) =>
+                        updatePort(device.id, p.id, {
+                          signal: e.target
+                            .value as (typeof SIGNAL_OPTIONS)[number]["value"],
+                        })
+                      }
+                    >
+                      {SIGNAL_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
                   )}
                 </li>
               ))}

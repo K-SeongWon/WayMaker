@@ -24,8 +24,7 @@ const MODEL_ART: Record<string, string> = {
   "ptz-camera": "camera-ptz",
   "philips-projector": "projector",
   "stage-monitor-tv": "display",
-  "xlr-lan-extender-tx": "rack-io",
-  "xlr-lan-extender-rx": "rack-io",
+  "xlr-lan-extender": "rack-io",
 };
 
 // 카테고리 기본 아트 (모델 매핑이 없을 때)
