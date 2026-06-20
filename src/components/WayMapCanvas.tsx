@@ -37,6 +37,7 @@ interface PickerState {
   position: { x: number; y: number }; // flow 좌표
   x: number; // 화면(래퍼 기준)
   y: number;
+  brand: string | null; // 2단계: 선택한 제조사
 }
 
 function Flow() {
@@ -131,7 +132,7 @@ function Flow() {
           (rect?.width ?? 9999) - 232,
         );
         const y = rect ? e.clientY - rect.top : e.clientY;
-        setPicker({ typeId, position, x: Math.max(8, x), y });
+        setPicker({ typeId, position, x: Math.max(8, x), y, brand: null });
       }
     },
     [screenToFlowPosition, addZone],
@@ -209,23 +210,48 @@ function Flow() {
             className="absolute z-30 max-h-[70%] w-56 overflow-y-auto rounded-lg border border-gray-200 bg-white p-1.5 text-sm shadow-xl"
             style={{ left: picker.x, top: picker.y }}
           >
-            <div className="px-1.5 py-1 text-xs font-semibold text-gray-700">
-              {getType(picker.typeId)?.label}
-            </div>
-            <button
-              type="button"
-              onClick={() => createDevice()}
-              className="w-full rounded-md px-2 py-1.5 text-left text-gray-700 hover:bg-blue-50"
-            >
-              기본 장치 <span className="text-[11px] text-gray-400">(Default)</span>
-            </button>
-
-            {pickerModels.map((g) => (
-              <div key={g.brand} className="mt-1">
-                <div className="px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                  {g.brand}
+            {!picker.brand ? (
+              // 1단계: 제조사 선택 (+ 기본 장치)
+              <>
+                <div className="px-1.5 py-1 text-xs font-semibold text-gray-700">
+                  {getType(picker.typeId)?.label}
+                  <span className="ml-1 text-[10px] font-normal text-gray-400">제조사 선택</span>
                 </div>
-                {g.items.map((m) => (
+                <button
+                  type="button"
+                  onClick={() => createDevice()}
+                  className="w-full rounded-md px-2 py-1.5 text-left text-gray-700 hover:bg-blue-50"
+                >
+                  기본 장치 <span className="text-[11px] text-gray-400">(Default)</span>
+                </button>
+                {pickerModels.map((g) => (
+                  <button
+                    key={g.brand}
+                    type="button"
+                    onClick={() => setPicker({ ...picker, brand: g.brand })}
+                    className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-gray-700 hover:bg-blue-50"
+                  >
+                    <span>{g.brand}</span>
+                    <span className="text-[11px] text-gray-400">{g.items.length} ›</span>
+                  </button>
+                ))}
+                {pickerModels.length === 0 && (
+                  <div className="px-1.5 py-1 text-[11px] text-gray-400">
+                    내장 모델 없음 — 기본 장치로 추가하세요.
+                  </div>
+                )}
+              </>
+            ) : (
+              // 2단계: 선택한 제조사의 모델
+              <>
+                <button
+                  type="button"
+                  onClick={() => setPicker({ ...picker, brand: null })}
+                  className="mb-0.5 flex w-full items-center gap-1 rounded-md px-1.5 py-1 text-left text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                >
+                  <span className="text-gray-400">‹</span> {picker.brand}
+                </button>
+                {(pickerModels.find((g) => g.brand === picker.brand)?.items ?? []).map((m) => (
                   <button
                     key={m.key}
                     type="button"
@@ -240,13 +266,7 @@ function Flow() {
                     )}
                   </button>
                 ))}
-              </div>
-            ))}
-
-            {pickerModels.length === 0 && (
-              <div className="px-1.5 py-1 text-[11px] text-gray-400">
-                내장 모델 없음 — 기본 장치로 추가하세요.
-              </div>
+              </>
             )}
           </div>
         </>
