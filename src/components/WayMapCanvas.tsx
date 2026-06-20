@@ -7,13 +7,8 @@ import {
   Background,
   Controls,
   MiniMap,
-  addEdge,
-  useNodesState,
-  useEdgesState,
   useReactFlow,
   type Node,
-  type Edge,
-  type Connection,
   type NodeTypes,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -21,23 +16,19 @@ import "@xyflow/react/dist/style.css";
 import DeviceNode from "./DeviceNode";
 import { PRESETS, type PresetKey } from "@/lib/devicePresets";
 import type { DeviceData } from "@/lib/types";
-import { useWayMapStore } from "@/store/waymapStore";
+import { useWayMapStore, nextDeviceId } from "@/store/waymapStore";
 
 const nodeTypes: NodeTypes = { device: DeviceNode };
 
-let idCounter = 0;
-const nextId = () => `d${++idCounter}`;
-
 function Flow() {
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node<DeviceData>>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const nodes = useWayMapStore((s) => s.nodes);
+  const edges = useWayMapStore((s) => s.edges);
+  const onNodesChange = useWayMapStore((s) => s.onNodesChange);
+  const onEdgesChange = useWayMapStore((s) => s.onEdgesChange);
+  const onConnect = useWayMapStore((s) => s.onConnect);
+  const addDevice = useWayMapStore((s) => s.addDevice);
+  const setSelectedId = useWayMapStore((s) => s.setSelectedId);
   const { screenToFlowPosition } = useReactFlow();
-  const setSelected = useWayMapStore((s) => s.setSelected);
-
-  const onConnect = useCallback(
-    (c: Connection) => setEdges((eds) => addEdge(c, eds)),
-    [setEdges],
-  );
 
   const onDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -53,15 +44,14 @@ function Flow() {
 
       const position = screenToFlowPosition({ x: e.clientX, y: e.clientY });
       const node: Node<DeviceData> = {
-        id: nextId(),
+        id: nextDeviceId(),
         type: "device",
         position,
-        // 프리셋을 깊은 복사해 인스턴스마다 독립적인 포트 배열을 갖게 함
         data: { ...preset, ports: preset.ports.map((p) => ({ ...p })) },
       };
-      setNodes((nds) => nds.concat(node));
+      addDevice(node);
     },
-    [screenToFlowPosition, setNodes],
+    [screenToFlowPosition, addDevice],
   );
 
   return (
@@ -73,8 +63,8 @@ function Flow() {
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         nodeTypes={nodeTypes}
-        onNodeClick={(_, n) => setSelected(n as Node<DeviceData>)}
-        onPaneClick={() => setSelected(null)}
+        onNodeClick={(_, n) => setSelectedId(n.id)}
+        onPaneClick={() => setSelectedId(null)}
         fitView
       >
         <Background />

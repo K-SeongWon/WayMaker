@@ -52,3 +52,29 @@ export interface DeviceData {
   ports: Port[];
   [key: string]: unknown;
 }
+
+// ── WayMap 저장 포맷 (PROJECT-PLAN §4) ───────────────────────────
+// 범용 JSON. 우리 웹앱에 다시 불러올 수 있는 표준 문서 형식.
+
+export interface WayMapDevice {
+  id: string;
+  category: DeviceCategory;
+  model?: string;
+  label: string;
+  position: { x: number; y: number };
+  ports: Port[];
+}
+
+export interface WayMapConnection {
+  id: string;
+  from: { deviceId: string; portId: string | null };
+  to: { deviceId: string; portId: string | null };
+}
+
+export interface WayMapDoc {
+  format: "waymap";
+  version: string;
+  meta: { title: string; createdAt?: string; appVersion: string };
+  devices: WayMapDevice[];
+  connections: WayMapConnection[];
+}
