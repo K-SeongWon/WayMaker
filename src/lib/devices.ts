@@ -4,7 +4,6 @@ import type {
   DeviceData,
   Port,
   PortDirection,
-  PortSide,
   SignalType,
 } from "./types";
 
@@ -21,31 +20,12 @@ export interface PortGroup {
   count?: number; // 기본 1
 }
 
-// 실제 후면 패널과 비슷하게 핀을 배치하기 위한 모델별 레이아웃.
-// 각 포트 그룹을 (x,y)에서 시작해 dx 간격으로, cols마다 rowDy만큼 줄바꿈.
-export interface PortPlacement {
-  group: string; // PortGroup.name 과 일치
-  x: number;
-  y: number;
-  dx?: number; // 행 내 핀 간격
-  cols?: number; // 줄바꿈 전 핀 수(기본 = count)
-  rowDy?: number; // 줄바꿈 시 y 증가
-  side: PortSide; // 핀이 부착되는 변
-}
-
-export interface DeviceLayout {
-  w: number;
-  h: number;
-  ports: PortPlacement[];
-}
-
 export interface DevicePreset {
   key: string;
   brand?: string;
   model: string; // 노드 기본 라벨
   category: DeviceCategory;
   ports: PortGroup[];
-  layout?: DeviceLayout; // 있으면 실패널형 노드로 렌더
   note?: string;
   confidence?: "high" | "medium" | "low";
 }
@@ -98,30 +78,8 @@ export const DEVICE_PRESETS: DevicePreset[] = [
     category: "mixer",
     confidence: "high",
     note: "로컬 16 마이크 입력 / 8 XLR 출력, AES50 A·B, ULTRANET(P16), AES/EBU, 카드 슬롯.",
-    // 실제 후면 패널 배치를 본뜬 레이아웃: 상단=아날로그(AUX/OUT/IN), 하단=디지털/전원
-    layout: {
-      w: 480,
-      h: 162,
-      ports: [
-        { group: "AUX IN", x: 22, y: 30, dx: 14, side: "top" },
-        { group: "AUX OUT", x: 22, y: 54, dx: 14, side: "top" },
-        { group: "PHONES", x: 118, y: 54, dx: 14, side: "top" },
-        { group: "XLR OUT", x: 180, y: 30, dx: 15, side: "top" },
-        { group: "MIC IN", x: 300, y: 26, dx: 11, cols: 8, rowDy: 22, side: "top" },
-        { group: "POWER", x: 22, y: 132, side: "bottom" },
-        { group: "카드 슬롯", x: 70, y: 132, side: "bottom" },
-        { group: "USB REC", x: 110, y: 132, side: "bottom" },
-        { group: "ETHERNET", x: 134, y: 132, side: "bottom" },
-        { group: "MIDI IN", x: 172, y: 132, side: "bottom" },
-        { group: "MIDI OUT", x: 192, y: 132, side: "bottom" },
-        { group: "AES/EBU OUT", x: 232, y: 132, side: "bottom" },
-        { group: "ULTRANET P16", x: 274, y: 132, side: "bottom" },
-        { group: "AES50 A", x: 420, y: 132, side: "bottom" },
-        { group: "AES50 B", x: 444, y: 132, side: "bottom" },
-      ],
-    },
     ports: [
-      { name: "MIC IN", direction: "in", signal: "analog_audio", connector: "xlr_f", count: 16 },
+      { name: "IN", direction: "in", signal: "analog_audio", connector: "xlr_f", count: 16 },
       { name: "XLR OUT", direction: "out", signal: "analog_audio", connector: "xlr_m", count: 8 },
       { name: "AUX IN", direction: "in", signal: "analog_audio", connector: "trs", count: 6 },
       { name: "AUX OUT", direction: "out", signal: "analog_audio", connector: "trs", count: 6 },
@@ -145,21 +103,8 @@ export const DEVICE_PRESETS: DevicePreset[] = [
     category: "stagebox",
     confidence: "high",
     note: "16 MIDAS 프리앰프 입력 / 8 XLR 출력, AES50 A·B, ULTRANET(P16) 허브.",
-    layout: {
-      w: 380,
-      h: 150,
-      ports: [
-        { group: "MIC IN", x: 24, y: 28, dx: 13, cols: 8, rowDy: 22, side: "top" },
-        { group: "XLR OUT", x: 24, y: 78, dx: 14, side: "top" },
-        { group: "POWER", x: 24, y: 122, side: "bottom" },
-        { group: "USB (펌웨어)", x: 64, y: 122, side: "bottom" },
-        { group: "ULTRANET P16", x: 150, y: 122, side: "bottom" },
-        { group: "AES50 A", x: 318, y: 122, side: "bottom" },
-        { group: "AES50 B", x: 342, y: 122, side: "bottom" },
-      ],
-    },
     ports: [
-      { name: "MIC IN", direction: "in", signal: "analog_audio", connector: "xlr_f", count: 16 },
+      { name: "IN", direction: "in", signal: "analog_audio", connector: "xlr_f", count: 16 },
       { name: "XLR OUT", direction: "out", signal: "analog_audio", connector: "xlr_m", count: 8 },
       { name: "AES50 A", direction: "bidi", signal: "digital_audio", connector: "etherCON" },
       { name: "AES50 B", direction: "bidi", signal: "digital_audio", connector: "etherCON" },
@@ -290,7 +235,7 @@ export const DEVICE_PRESETS: DevicePreset[] = [
     confidence: "medium",
     note: "액티브 모니터 웨지(2채널 내장 믹서). XLR 마이크 입력 + 콤보 라인 입력 + XLR 링크 출력.",
     ports: [
-      { name: "MIC IN", direction: "in", signal: "analog_audio", connector: "xlr_f" },
+      { name: "IN", direction: "in", signal: "analog_audio", connector: "xlr_f" },
       { name: "LINE IN", direction: "in", signal: "analog_audio", connector: "combo_xlr_trs" },
       { name: "LINK OUT", direction: "out", signal: "analog_audio", connector: "xlr_m" },
       { name: "POWER", direction: "in", signal: "power", connector: "iec_power" },
@@ -418,16 +363,12 @@ function slug(s: string): string {
   );
 }
 
-/** 포트 그룹을 개별 포트로 확장(고유 id 부여). layout이 있으면 핀 좌표(pos)도 부여 */
-export function expandPorts(groups: PortGroup[], layout?: DeviceLayout): Port[] {
-  const placements = new Map<string, PortPlacement>();
-  if (layout) for (const pl of layout.ports) placements.set(pl.group, pl);
-
+/** 포트 그룹을 개별 포트로 확장(고유 id 부여) */
+export function expandPorts(groups: PortGroup[]): Port[] {
   const out: Port[] = [];
   const used = new Set<string>();
   for (const g of groups) {
     const n = g.count ?? 1;
-    const pl = placements.get(g.name);
     for (let i = 1; i <= n; i++) {
       const name = n > 1 ? `${g.name} ${i}` : g.name;
       const base = slug(name);
@@ -435,24 +376,13 @@ export function expandPorts(groups: PortGroup[], layout?: DeviceLayout): Port[] 
       let k = 1;
       while (used.has(id)) id = `${base}-${k++}`;
       used.add(id);
-
-      const port: Port = {
+      out.push({
         id,
         name,
         direction: g.direction,
         signal: g.signal,
         connector: g.connector,
-      };
-      if (pl) {
-        const idx = i - 1;
-        const cols = pl.cols ?? n;
-        port.pos = {
-          x: pl.x + (idx % cols) * (pl.dx ?? 0),
-          y: pl.y + Math.floor(idx / cols) * (pl.rowDy ?? 0),
-          side: pl.side,
-        };
-      }
-      out.push(port);
+      });
     }
   }
   return out;
@@ -464,6 +394,6 @@ export function deviceDataFromPreset(p: DevicePreset): DeviceData {
     label: p.model,
     category: p.category,
     model: p.key,
-    ports: expandPorts(p.ports, p.layout),
+    ports: expandPorts(p.ports),
   };
 }

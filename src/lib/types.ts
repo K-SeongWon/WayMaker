@@ -37,8 +37,6 @@ export type ConnectorType =
   | "euroblock"
   | "unknown";
 
-export type PortSide = "top" | "bottom" | "left" | "right";
-
 export interface Port {
   id: string;
   name: string;
@@ -46,8 +44,6 @@ export interface Port {
   signal: SignalType;
   /** 숙련자용 선택 정보 — 초보자는 비워둠 */
   connector?: ConnectorType;
-  /** 모델별 실패널 레이아웃이 있을 때 핀의 박스 내 좌표(px)와 부착 변 */
-  pos?: { x: number; y: number; side: PortSide };
 }
 
 export type DeviceCategory =
