@@ -9,17 +9,18 @@ import {
   MiniMap,
   ConnectionMode,
   useReactFlow,
-  type Node,
   type NodeTypes,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
 import DeviceNode from "./DeviceNode";
+import ZoneNode from "./ZoneNode";
 import { getPreset, deviceDataFromPreset } from "@/lib/devices";
-import type { DeviceData } from "@/lib/types";
-import { useWayMapStore, nextDeviceId } from "@/store/waymapStore";
+import { ZONE_PRESETS, ZONE_DEFAULT_SIZE } from "@/lib/zones";
+import type { DeviceNodeT, ZoneNodeT } from "@/lib/types";
+import { useWayMapStore, nextDeviceId, nextZoneId } from "@/store/waymapStore";
 
-const nodeTypes: NodeTypes = { device: DeviceNode };
+const nodeTypes: NodeTypes = { device: DeviceNode, zone: ZoneNode };
 
 function Flow() {
   const nodes = useWayMapStore((s) => s.nodes);
@@ -28,6 +29,7 @@ function Flow() {
   const onEdgesChange = useWayMapStore((s) => s.onEdgesChange);
   const onConnect = useWayMapStore((s) => s.onConnect);
   const addDevice = useWayMapStore((s) => s.addDevice);
+  const addZone = useWayMapStore((s) => s.addZone);
   const setSelectedId = useWayMapStore((s) => s.setSelectedId);
   const { screenToFlowPosition } = useReactFlow();
 
@@ -40,19 +42,39 @@ function Flow() {
     (e: React.DragEvent) => {
       e.preventDefault();
       const key = e.dataTransfer.getData("application/waymaker");
+      if (!key) return;
+      const position = screenToFlowPosition({ x: e.clientX, y: e.clientY });
+
+      // 장소(구획) 드롭
+      if (key.startsWith("zone:")) {
+        const preset = ZONE_PRESETS.find((p) => p.key === key.slice(5));
+        if (!preset) return;
+        const node: ZoneNodeT = {
+          id: nextZoneId(),
+          type: "zone",
+          position,
+          width: ZONE_DEFAULT_SIZE.w,
+          height: ZONE_DEFAULT_SIZE.h,
+          zIndex: 0,
+          data: { label: preset.label, zoneType: preset.key, color: preset.color },
+        };
+        addZone(node);
+        return;
+      }
+
+      // 장비 드롭
       const preset = getPreset(key);
       if (!preset) return;
-
-      const position = screenToFlowPosition({ x: e.clientX, y: e.clientY });
-      const node: Node<DeviceData> = {
+      const node: DeviceNodeT = {
         id: nextDeviceId(),
         type: "device",
         position,
+        zIndex: 1,
         data: deviceDataFromPreset(preset),
       };
       addDevice(node);
     },
-    [screenToFlowPosition, addDevice],
+    [screenToFlowPosition, addDevice, addZone],
   );
 
   return (

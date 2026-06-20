@@ -6,6 +6,7 @@ import {
   DEVICE_PRESETS,
   type DevicePreset,
 } from "@/lib/devices";
+import { ZONE_COLORS, ZONE_PRESETS } from "@/lib/zones";
 import type { DeviceCategory } from "@/lib/types";
 import CategoryIcon, { CATEGORY_STYLE } from "./CategoryIcon";
 
@@ -20,10 +21,34 @@ export default function Palette() {
   return (
     <aside className="w-60 shrink-0 overflow-y-auto border-r border-gray-200 bg-gray-50 p-3">
       <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">
-        장비 팔레트
+        팔레트
       </h2>
       <p className="mb-3 text-[11px] text-gray-400">캔버스로 끌어다 놓으세요</p>
 
+      {/* 장소(구획) */}
+      <div className="mb-4">
+        <div className="mb-1 text-[11px] font-semibold text-gray-500">장소 (구획)</div>
+        <div className="flex flex-wrap gap-1.5">
+          {ZONE_PRESETS.map((z) => {
+            const c = ZONE_COLORS[z.color];
+            return (
+              <div
+                key={z.key}
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData("application/waymaker", `zone:${z.key}`);
+                  e.dataTransfer.effectAllowed = "move";
+                }}
+                className={`cursor-grab rounded border px-2 py-1 text-[11px] font-medium ${c.border} ${c.label} active:cursor-grabbing`}
+              >
+                {z.label}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="mb-1 text-[11px] font-semibold text-gray-500">장비</div>
       <div className="space-y-4">
         {GROUPED.map((group) => (
           <div key={group.category}>

@@ -1,5 +1,6 @@
-import type { Edge, Node } from "@xyflow/react";
-import type { DeviceData, WayMapDoc } from "./types";
+import type { Edge } from "@xyflow/react";
+import type { AppNode, DeviceNodeT, WayMapDoc, ZoneNodeT } from "./types";
+import { ZONE_DEFAULT_SIZE } from "./zones";
 
 export const WAYMAP_VERSION = "0.1.0";
 export const APP_VERSION = "0.1.0";
@@ -7,10 +8,13 @@ export const AUTOSAVE_KEY = "waymaker:autosave:v1";
 
 /** React Flow 상태 → WayMap 문서 */
 export function serializeWayMap(
-  nodes: Node<DeviceData>[],
+  nodes: AppNode[],
   edges: Edge[],
   title: string,
 ): WayMapDoc {
+  const devices = nodes.filter((n): n is DeviceNodeT => n.type === "device");
+  const zones = nodes.filter((n): n is ZoneNodeT => n.type === "zone");
+
   return {
     format: "waymap",
     version: WAYMAP_VERSION,
@@ -19,7 +23,7 @@ export function serializeWayMap(
       createdAt: new Date().toISOString(),
       appVersion: APP_VERSION,
     },
-    devices: nodes.map((n) => ({
+    devices: devices.map((n) => ({
       id: n.id,
       category: n.data.category,
       model: n.data.model,
@@ -32,12 +36,27 @@ export function serializeWayMap(
       from: { deviceId: e.source, portId: e.sourceHandle ?? null },
       to: { deviceId: e.target, portId: e.targetHandle ?? null },
     })),
+    venue: zones.length
+      ? {
+          zones: zones.map((z) => ({
+            id: z.id,
+            label: z.data.label,
+            zoneType: z.data.zoneType,
+            color: z.data.color,
+            position: { x: Math.round(z.position.x), y: Math.round(z.position.y) },
+            size: {
+              w: Math.round(z.width ?? z.measured?.width ?? ZONE_DEFAULT_SIZE.w),
+              h: Math.round(z.height ?? z.measured?.height ?? ZONE_DEFAULT_SIZE.h),
+            },
+          })),
+        }
+      : undefined,
   };
 }
 
 /** WayMap 문서 → React Flow 상태 (검증 포함) */
 export function deserializeWayMap(doc: unknown): {
-  nodes: Node<DeviceData>[];
+  nodes: AppNode[];
   edges: Edge[];
   title: string;
 } {
@@ -52,10 +71,22 @@ export function deserializeWayMap(doc: unknown): {
   }
   const d = doc as WayMapDoc;
 
-  const nodes: Node<DeviceData>[] = d.devices.map((dev) => ({
+  // 장소가 먼저 와야 장비 뒤에 렌더된다(zIndex로도 보장).
+  const zoneNodes: AppNode[] = (d.venue?.zones ?? []).map((z) => ({
+    id: z.id,
+    type: "zone",
+    position: z.position ?? { x: 0, y: 0 },
+    width: z.size?.w ?? ZONE_DEFAULT_SIZE.w,
+    height: z.size?.h ?? ZONE_DEFAULT_SIZE.h,
+    zIndex: 0,
+    data: { label: z.label, zoneType: z.zoneType, color: z.color },
+  }));
+
+  const deviceNodes: AppNode[] = d.devices.map((dev) => ({
     id: dev.id,
     type: "device",
     position: dev.position ?? { x: 0, y: 0 },
+    zIndex: 1,
     data: {
       label: dev.label,
       category: dev.category,
@@ -72,7 +103,7 @@ export function deserializeWayMap(doc: unknown): {
     targetHandle: c.to.portId ?? undefined,
   }));
 
-  return { nodes, edges, title: d.meta?.title ?? "" };
+  return { nodes: [...zoneNodes, ...deviceNodes], edges, title: d.meta?.title ?? "" };
 }
 
 /** WayMap 문서를 .waymap.json 파일로 다운로드 (브라우저 전용) */

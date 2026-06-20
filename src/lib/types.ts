@@ -1,4 +1,6 @@
-// WayMaker 도메인 타입 (PROJECT-PLAN §4 WayMap 스키마 기반, M1 최소 버전)
+// WayMaker 도메인 타입 (PROJECT-PLAN §4 WayMap 스키마 기반)
+
+import type { Node } from "@xyflow/react";
 
 export type PortDirection = "in" | "out" | "bidi";
 
@@ -74,6 +76,19 @@ export interface DeviceData {
   [key: string]: unknown;
 }
 
+// 장소(구획) 노드의 data. 방송실/무대/강대상 등 러프한 박스.
+export interface ZoneData {
+  label: string;
+  zoneType?: string;
+  color: string; // ZONE_COLORS 키
+  [key: string]: unknown;
+}
+
+// 캔버스 노드 union (React Flow). 타입으로 device/zone 구분.
+export type DeviceNodeT = Node<DeviceData, "device">;
+export type ZoneNodeT = Node<ZoneData, "zone">;
+export type AppNode = DeviceNodeT | ZoneNodeT;
+
 // ── WayMap 저장 포맷 (PROJECT-PLAN §4) ───────────────────────────
 // 범용 JSON. 우리 웹앱에 다시 불러올 수 있는 표준 문서 형식.
 
@@ -92,10 +107,20 @@ export interface WayMapConnection {
   to: { deviceId: string; portId: string | null };
 }
 
+export interface WayMapZone {
+  id: string;
+  label: string;
+  zoneType?: string;
+  color: string;
+  position: { x: number; y: number };
+  size: { w: number; h: number };
+}
+
 export interface WayMapDoc {
   format: "waymap";
   version: string;
   meta: { title: string; createdAt?: string; appVersion: string };
   devices: WayMapDevice[];
   connections: WayMapConnection[];
+  venue?: { zones: WayMapZone[] };
 }
