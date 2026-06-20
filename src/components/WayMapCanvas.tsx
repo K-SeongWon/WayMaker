@@ -7,6 +7,7 @@ import {
   Background,
   Controls,
   MiniMap,
+  ConnectionMode,
   useReactFlow,
   type Node,
   type NodeTypes,
@@ -62,6 +63,7 @@ function Flow() {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        connectionMode={ConnectionMode.Loose}
         nodeTypes={nodeTypes}
         onNodeClick={(_, n) => setSelectedId(n.id)}
         onPaneClick={() => setSelectedId(null)}

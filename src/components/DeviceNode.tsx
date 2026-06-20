@@ -1,12 +1,25 @@
 "use client";
 
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
-import type { DeviceData } from "@/lib/types";
+import type { DeviceData, Port } from "@/lib/types";
 
-// 포트(핸들)가 달린 장비 노드. 입력은 왼쪽(target), 출력은 오른쪽(source).
+// 포트 방향은 신호 흐름(M6 애니메이션)의 핵심 메타데이터다.
+//  - in   : 입력  → 왼쪽 target 핸들 (emerald)
+//  - out  : 출력  → 오른쪽 source 핸들 (sky)
+//  - bidi : 데이터(양방향, 예: AES50·이더넷) → 오른쪽 source 핸들 (amber)
+// 포트당 핸들은 정확히 1개여야 한다(중복 id 금지). 데이터 포트의 양방향 결선은
+// 캔버스의 ConnectionMode.Loose 가 처리한다.
+function handleColor(dir: Port["direction"]) {
+  if (dir === "in") return "!bg-emerald-500";
+  if (dir === "out") return "!bg-sky-500";
+  return "!bg-amber-500";
+}
+
+const HANDLE_BASE = "!h-2.5 !w-2.5 !border-2 !border-white";
+
 export default function DeviceNode({ data, selected }: NodeProps<Node<DeviceData>>) {
-  const inputs = data.ports.filter((p) => p.direction === "in" || p.direction === "bidi");
-  const outputs = data.ports.filter((p) => p.direction === "out" || p.direction === "bidi");
+  const left = data.ports.filter((p) => p.direction === "in");
+  const right = data.ports.filter((p) => p.direction !== "in"); // out + bidi
 
   return (
     <div
@@ -20,39 +33,41 @@ export default function DeviceNode({ data, selected }: NodeProps<Node<DeviceData
 
       <div className="flex justify-between gap-4 px-3 py-2">
         <div className="flex flex-col gap-1.5">
-          {inputs.map((p) => (
+          {left.map((p) => (
             <span key={p.id} className="text-gray-600">
-              ● {p.name}
+              ▸ {p.name}
             </span>
           ))}
         </div>
         <div className="flex flex-col gap-1.5 text-right">
-          {outputs.map((p) => (
+          {right.map((p) => (
             <span key={p.id} className="text-gray-600">
-              {p.name} ●
+              {p.direction === "bidi" ? "⇄ " : ""}
+              {p.name}
+              {p.direction === "out" ? " ▸" : ""}
             </span>
           ))}
         </div>
       </div>
 
-      {inputs.map((p, i) => (
+      {left.map((p, i) => (
         <Handle
           key={p.id}
           id={p.id}
           type="target"
           position={Position.Left}
-          style={{ top: `${((i + 1) / (inputs.length + 1)) * 100}%` }}
-          className="!h-2.5 !w-2.5 !border-2 !border-white !bg-emerald-500"
+          style={{ top: `${((i + 1) / (left.length + 1)) * 100}%` }}
+          className={`${HANDLE_BASE} ${handleColor(p.direction)}`}
         />
       ))}
-      {outputs.map((p, i) => (
+      {right.map((p, i) => (
         <Handle
           key={p.id}
           id={p.id}
           type="source"
           position={Position.Right}
-          style={{ top: `${((i + 1) / (outputs.length + 1)) * 100}%` }}
-          className="!h-2.5 !w-2.5 !border-2 !border-white !bg-sky-500"
+          style={{ top: `${((i + 1) / (right.length + 1)) * 100}%` }}
+          className={`${HANDLE_BASE} ${handleColor(p.direction)}`}
         />
       ))}
     </div>

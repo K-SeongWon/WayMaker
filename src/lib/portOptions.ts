@@ -5,7 +5,7 @@ import type { ConnectorType, PortDirection, SignalType } from "./types";
 export const DIRECTION_OPTIONS: { value: PortDirection; label: string }[] = [
   { value: "in", label: "입력" },
   { value: "out", label: "출력" },
-  { value: "bidi", label: "양방향" },
+  { value: "bidi", label: "데이터 (양방향·AES50/이더넷)" },
 ];
 
 export const SIGNAL_OPTIONS: { value: SignalType; label: string }[] = [
