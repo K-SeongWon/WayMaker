@@ -46,6 +46,7 @@ export function serializeWayMap(
       position: { x: Math.round(n.position.x), y: Math.round(n.position.y) },
       ports: n.data.ports,
       ...(n.data.image ? { image: n.data.image } : {}),
+      ...(n.data.routing ? { routing: n.data.routing } : {}),
     })),
     connections: edges.map((e) => {
       const detail = cleanDetail(e.data);
@@ -113,6 +114,7 @@ export function deserializeWayMap(doc: unknown): {
       model: dev.model,
       ports: dev.ports ?? [],
       image: dev.image,
+      routing: dev.routing,
     },
   }));
 

@@ -48,7 +48,7 @@ function Flow() {
     if (!flowMode || !selectedId) return null;
     const sel = nodes.find((n) => n.id === selectedId);
     if (!sel || sel.type !== "device") return null;
-    return computeFlow(selectedId, edges);
+    return computeFlow(selectedId, nodes, edges);
   }, [flowMode, selectedId, nodes, edges]);
 
   // 표시용 엣지: 흐름 경로는 애니메이션+강조, 그 외는 디밍. 편집 선택 엣지는 파란 강조.

@@ -46,7 +46,17 @@ export interface Port {
   connector?: ConnectorType;
   /** 박스에서 핀을 표시할 쪽. 없으면 방향 기반(in=왼쪽, 그 외 오른쪽) */
   side?: "left" | "right";
+  /** 신호 추적용: 채널 번호(스네이크 장비의 채널 매칭) */
+  channel?: number;
+  /** 신호 추적용: 멀티채널 간선(트렁크) 포트 여부(예: 익스텐더 RJ45) */
+  trunk?: boolean;
 }
+
+// 장비 내부 신호 라우팅 모드
+//  - mesh : 모든 포트가 내부로 연결(기본; 믹서 등)
+//  - sink : 내부 전달 없음(종단)
+//  - snake: 채널 격리 + 트렁크(RJ45) 채널 보존(랜 익스텐더 등)
+export type DeviceRouting = "mesh" | "sink" | "snake";
 
 export type DeviceCategory =
   | "mixer"
@@ -77,6 +87,8 @@ export interface DeviceData {
   ports: Port[];
   /** 사용자가 등록한 커스텀 아이콘 이미지(data URL, 로컬 전용) */
   image?: string;
+  /** 내부 신호 라우팅 모드(없으면 mesh) */
+  routing?: DeviceRouting;
   [key: string]: unknown;
 }
 
@@ -115,6 +127,7 @@ export interface WayMapDevice {
   position: { x: number; y: number };
   ports: Port[];
   image?: string;
+  routing?: DeviceRouting;
 }
 
 export interface WayMapConnection {

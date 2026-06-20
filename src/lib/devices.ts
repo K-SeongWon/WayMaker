@@ -2,6 +2,7 @@ import type {
   ConnectorType,
   DeviceCategory,
   DeviceData,
+  DeviceRouting,
   Port,
   PortDirection,
   SignalType,
@@ -18,6 +19,10 @@ export interface PortGroup {
   signal: SignalType;
   connector?: ConnectorType;
   count?: number; // 기본 1
+  /** count개에 채널 1..n 부여(스네이크 채널 매칭) */
+  channelize?: boolean;
+  /** 멀티채널 트렁크 포트(예: RJ45) */
+  trunk?: boolean;
 }
 
 export interface DevicePreset {
@@ -26,6 +31,7 @@ export interface DevicePreset {
   model: string; // 노드 기본 라벨
   category: DeviceCategory;
   ports: PortGroup[];
+  routing?: DeviceRouting; // 내부 신호 라우팅(없으면 mesh)
   note?: string;
   confidence?: "high" | "medium" | "low";
 }
@@ -329,10 +335,11 @@ export const DEVICE_PRESETS: DevicePreset[] = [
     model: "4ch XLR 랜 익스텐더",
     category: "network",
     confidence: "low",
-    note: "XLR 마이크 4채널을 Cat5(RJ45) 한 가닥으로 연장. 입출력 구분 없음 — 각 XLR 단자의 암/수만 개별 설정. 두 대를 RJ45로 연결해 사용.",
+    routing: "snake",
+    note: "XLR 마이크 4채널을 Cat5(RJ45) 한 가닥으로 연장. 입출력 구분 없음 — 각 XLR 단자의 암/수만 개별 설정. 두 대를 RJ45로 연결해 사용. 채널 n은 RJ45를 거쳐 반대편 채널 n으로만 이어짐.",
     ports: [
-      { name: "XLR", direction: "bidi", signal: "analog_audio", connector: "xlr_f", count: 4 },
-      { name: "RJ45 (Cat5)", direction: "bidi", signal: "network", connector: "rj45" },
+      { name: "XLR", direction: "bidi", signal: "analog_audio", connector: "xlr_f", count: 4, channelize: true },
+      { name: "RJ45 (Cat5)", direction: "bidi", signal: "network", connector: "rj45", trunk: true },
     ],
   },
 ];
@@ -365,13 +372,16 @@ export function expandPorts(groups: PortGroup[]): Port[] {
       let k = 1;
       while (used.has(id)) id = `${base}-${k++}`;
       used.add(id);
-      out.push({
+      const port: Port = {
         id,
         name,
         direction: g.direction,
         signal: g.signal,
         connector: g.connector,
-      });
+      };
+      if (g.channelize) port.channel = i;
+      if (g.trunk) port.trunk = true;
+      out.push(port);
     }
   }
   return out;
@@ -384,5 +394,6 @@ export function deviceDataFromPreset(p: DevicePreset): DeviceData {
     category: p.category,
     model: p.key,
     ports: expandPorts(p.ports),
+    ...(p.routing ? { routing: p.routing } : {}),
   };
 }
