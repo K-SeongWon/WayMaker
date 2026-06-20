@@ -5,16 +5,19 @@ import type { DeviceData, Port } from "@/lib/types";
 import CategoryIcon, { CATEGORY_STYLE } from "./CategoryIcon";
 import DeviceArt from "./DeviceArt";
 
-// 포트 방향은 신호 흐름(M6 애니메이션)의 핵심 메타데이터다.
-//  - in   : 입력 (emerald) / out : 출력 (sky) / bidi : 데이터·양방향 (amber)
-// 포트당 핸들은 정확히 1개. 데이터 포트의 양방향 결선은 캔버스의 ConnectionMode.Loose.
+// 방향: in=emerald / out=sky / bidi=amber. 포트당 핸들 1개.
 function handleColor(dir: Port["direction"]) {
   if (dir === "in") return "!bg-emerald-500";
   if (dir === "out") return "!bg-sky-500";
   return "!bg-amber-500";
 }
 
-// 같은 단자(커넥터) 유형끼리 모이도록 정렬 — 첫 등장 순서는 유지(안정).
+// 표시 쪽: port.side 우선, 없으면 방향 기반(입력=왼쪽, 그 외 오른쪽)
+function effSide(p: Port): "left" | "right" {
+  return p.side ?? (p.direction === "in" ? "left" : "right");
+}
+
+// 같은 단자(커넥터) 유형끼리 모이도록(첫 등장 순서 유지)
 function groupByConnector(ports: Port[]): Port[] {
   const order: string[] = [];
   const buckets = new Map<string, Port[]>();
@@ -33,8 +36,8 @@ const HANDLE_BASE = "!h-2.5 !w-2.5 !border-2 !border-white";
 
 export default function DeviceNode({ data, selected }: NodeProps<Node<DeviceData>>) {
   const style = CATEGORY_STYLE[data.category] ?? CATEGORY_STYLE.pc;
-  const left = groupByConnector(data.ports.filter((p) => p.direction === "in"));
-  const right = groupByConnector(data.ports.filter((p) => p.direction !== "in"));
+  const left = groupByConnector(data.ports.filter((p) => effSide(p) === "left"));
+  const right = groupByConnector(data.ports.filter((p) => effSide(p) === "right"));
 
   return (
     <div
@@ -49,8 +52,18 @@ export default function DeviceNode({ data, selected }: NodeProps<Node<DeviceData
         <span className="truncate">{data.label}</span>
       </div>
 
-      <div className="border-b border-gray-100 bg-white px-2 py-1">
-        <DeviceArt category={data.category} modelKey={data.model} className={style.icon} />
+      <div className="flex h-[54px] items-center justify-center border-b border-gray-100 bg-white px-2 py-1">
+        {data.image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={data.image}
+            alt=""
+            className="max-h-[46px] max-w-full object-contain"
+            draggable={false}
+          />
+        ) : (
+          <DeviceArt category={data.category} modelKey={data.model} className={style.icon} />
+        )}
       </div>
 
       <div className="flex justify-between py-2">
@@ -59,11 +72,11 @@ export default function DeviceNode({ data, selected }: NodeProps<Node<DeviceData
             <div key={p.id} className="relative pl-3 pr-1 text-gray-600">
               <Handle
                 id={p.id}
-                type="target"
+                type={p.direction === "in" ? "target" : "source"}
                 position={Position.Left}
                 className={`${HANDLE_BASE} ${handleColor(p.direction)}`}
               />
-              ▸ {p.name}
+              {p.name}
             </div>
           ))}
         </div>
@@ -72,13 +85,11 @@ export default function DeviceNode({ data, selected }: NodeProps<Node<DeviceData
             <div key={p.id} className="relative pl-1 pr-3 text-right text-gray-600">
               <Handle
                 id={p.id}
-                type="source"
+                type={p.direction === "in" ? "target" : "source"}
                 position={Position.Right}
                 className={`${HANDLE_BASE} ${handleColor(p.direction)}`}
               />
-              {p.direction === "bidi" ? "⇄ " : ""}
               {p.name}
-              {p.direction === "out" ? " ▸" : ""}
             </div>
           ))}
         </div>

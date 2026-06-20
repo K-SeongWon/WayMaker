@@ -44,6 +44,8 @@ export interface Port {
   signal: SignalType;
   /** 숙련자용 선택 정보 — 초보자는 비워둠 */
   connector?: ConnectorType;
+  /** 박스에서 핀을 표시할 쪽. 없으면 방향 기반(in=왼쪽, 그 외 오른쪽) */
+  side?: "left" | "right";
 }
 
 export type DeviceCategory =
@@ -73,6 +75,8 @@ export interface DeviceData {
   category: DeviceCategory;
   model?: string;
   ports: Port[];
+  /** 사용자가 등록한 커스텀 아이콘 이미지(data URL, 로컬 전용) */
+  image?: string;
   [key: string]: unknown;
 }
 
@@ -110,6 +114,7 @@ export interface WayMapDevice {
   label: string;
   position: { x: number; y: number };
   ports: Port[];
+  image?: string;
 }
 
 export interface WayMapConnection {

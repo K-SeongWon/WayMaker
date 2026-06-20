@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { nextPortId, useWayMapStore } from "@/store/waymapStore";
 import {
   CONNECTOR_OPTIONS,
@@ -8,13 +8,59 @@ import {
   SIGNAL_OPTIONS,
 } from "@/lib/portOptions";
 import { ZONE_COLOR_OPTIONS } from "@/lib/zones";
-import type { ConnectorType, EdgeDetail } from "@/lib/types";
+import { fileToDataUrl } from "@/lib/image";
+import type { ConnectorType, EdgeDetail, Port } from "@/lib/types";
+import CategoryIcon, { CATEGORY_STYLE } from "./CategoryIcon";
 
 const field =
-  "w-full rounded border border-gray-300 px-2 py-1 text-sm text-gray-800 focus:border-blue-400 focus:outline-none";
-const label = "text-[11px] text-gray-400";
+  "w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-800 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-100";
+const selectSm =
+  "w-full min-w-0 rounded-md border border-gray-300 bg-white px-1.5 py-1 text-xs text-gray-700 focus:border-blue-500 focus:outline-none";
+const label = "mb-1 block text-[11px] font-medium text-gray-500";
+const sectionTitle =
+  "text-[11px] font-semibold uppercase tracking-wide text-gray-400";
+const ghostBtn =
+  "rounded-md border border-gray-300 bg-white px-2 py-1 text-xs text-gray-600 hover:border-blue-400 hover:bg-blue-50";
 const deleteBtn =
-  "w-full rounded border border-red-200 bg-white px-2 py-1.5 text-sm text-red-500 hover:border-red-400 hover:bg-red-50";
+  "w-full rounded-md border border-red-200 bg-white px-2 py-1.5 text-sm text-red-500 hover:border-red-400 hover:bg-red-50";
+
+function dotColor(dir: Port["direction"]) {
+  if (dir === "in") return "bg-emerald-500";
+  if (dir === "out") return "bg-sky-500";
+  return "bg-amber-500";
+}
+
+function effSide(p: Port): "left" | "right" {
+  return p.side ?? (p.direction === "in" ? "left" : "right");
+}
+
+function SideToggle({
+  value,
+  onChange,
+}: {
+  value: "left" | "right";
+  onChange: (v: "left" | "right") => void;
+}) {
+  return (
+    <div className="flex shrink-0 overflow-hidden rounded-md border border-gray-300 text-[11px]">
+      {(["left", "right"] as const).map((s) => (
+        <button
+          key={s}
+          type="button"
+          onClick={() => onChange(s)}
+          title={s === "left" ? "왼쪽에 표시" : "오른쪽에 표시"}
+          className={`px-1.5 py-1 ${
+            value === s
+              ? "bg-blue-500 text-white"
+              : "bg-white text-gray-500 hover:bg-gray-50"
+          }`}
+        >
+          {s === "left" ? "좌" : "우"}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export default function PropertiesPanel() {
   const node = useWayMapStore(
@@ -34,6 +80,7 @@ export default function PropertiesPanel() {
   const removeEdge = useWayMapStore((s) => s.removeEdge);
 
   const [advanced, setAdvanced] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const device = node && node.type === "device" ? node : null;
   const zone = node && node.type === "zone" ? node : null;
@@ -44,14 +91,28 @@ export default function PropertiesPanel() {
     return (n?.data as { label?: string } | undefined)?.label ?? id ?? "?";
   };
 
+  const onPickImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !device) return;
+    try {
+      const url = await fileToDataUrl(file, 320);
+      updateDevice(device.id, { image: url });
+    } catch {
+      alert("이미지를 불러오지 못했습니다.");
+    }
+  };
+
+  const kind = device ? "장비" : zone ? "장소" : edge ? "연결선" : null;
+
   return (
     <aside className="w-72 shrink-0 overflow-y-auto border-l border-gray-200 bg-gray-50 p-3">
-      <div className="mb-2 flex items-center justify-between">
+      <div className="mb-3 flex items-center justify-between">
         <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-          속성
+          속성{kind ? ` · ${kind}` : ""}
         </h2>
         {device && (
-          <label className="flex items-center gap-1 text-[11px] text-gray-500">
+          <label className="flex cursor-pointer items-center gap-1 text-[11px] text-gray-500">
             <input
               type="checkbox"
               checked={advanced}
@@ -68,17 +129,15 @@ export default function PropertiesPanel() {
         </p>
       )}
 
-      {/* 연결선(케이블) 편집 */}
+      {/* ─────────── 연결선(케이블) ─────────── */}
       {edge && (
         <div className="space-y-3 text-sm">
-          <div>
-            <div className={label}>연결</div>
-            <div className="text-gray-700">
-              {nodeLabel(edge.source)} → {nodeLabel(edge.target)}
-            </div>
+          <div className="rounded-md bg-white p-2 text-center text-xs text-gray-600 ring-1 ring-gray-200">
+            {nodeLabel(edge.source)} <span className="text-gray-400">→</span>{" "}
+            {nodeLabel(edge.target)}
           </div>
           <div>
-            <div className={label}>표시 라벨 (화면용)</div>
+            <span className={label}>표시 라벨 (화면용)</span>
             <input
               className={field}
               value={ed.displayLabel ?? ""}
@@ -89,7 +148,7 @@ export default function PropertiesPanel() {
             />
           </div>
           <div>
-            <div className={label}>장비 라벨 (장비에 적힌 표기)</div>
+            <span className={label}>장비 라벨 (장비에 적힌 표기)</span>
             <input
               className={field}
               value={ed.deviceLabel ?? ""}
@@ -101,7 +160,7 @@ export default function PropertiesPanel() {
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <div className={label}>시작 단자 ({nodeLabel(edge.source)})</div>
+              <span className={label}>시작 단자</span>
               <select
                 className={field}
                 value={ed.connectorFrom ?? ""}
@@ -119,7 +178,7 @@ export default function PropertiesPanel() {
               </select>
             </div>
             <div>
-              <div className={label}>끝 단자 ({nodeLabel(edge.target)})</div>
+              <span className={label}>끝 단자</span>
               <select
                 className={field}
                 value={ed.connectorTo ?? ""}
@@ -137,31 +196,33 @@ export default function PropertiesPanel() {
               </select>
             </div>
           </div>
-          <div>
-            <div className={label}>케이블 길이 (m)</div>
-            <input
-              type="number"
-              min={0}
-              step={0.5}
-              className={field}
-              value={ed.cableLength_m ?? ""}
-              onChange={(e) =>
-                updateEdge(edge.id, {
-                  cableLength_m:
-                    e.target.value === "" ? undefined : Number(e.target.value),
-                })
-              }
-            />
-          </div>
-          <div>
-            <div className={label}>메모</div>
-            <input
-              className={field}
-              value={ed.note ?? ""}
-              onChange={(e) =>
-                updateEdge(edge.id, { note: e.target.value || undefined })
-              }
-            />
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <span className={label}>케이블 길이 (m)</span>
+              <input
+                type="number"
+                min={0}
+                step={0.5}
+                className={field}
+                value={ed.cableLength_m ?? ""}
+                onChange={(e) =>
+                  updateEdge(edge.id, {
+                    cableLength_m:
+                      e.target.value === "" ? undefined : Number(e.target.value),
+                  })
+                }
+              />
+            </div>
+            <div>
+              <span className={label}>메모</span>
+              <input
+                className={field}
+                value={ed.note ?? ""}
+                onChange={(e) =>
+                  updateEdge(edge.id, { note: e.target.value || undefined })
+                }
+              />
+            </div>
           </div>
           <button type="button" onClick={() => removeEdge(edge.id)} className={deleteBtn}>
             연결 삭제
@@ -169,11 +230,11 @@ export default function PropertiesPanel() {
         </div>
       )}
 
-      {/* 장소(구획) 편집 */}
+      {/* ─────────── 장소(구획) ─────────── */}
       {zone && (
-        <div className="space-y-4 text-sm">
+        <div className="space-y-3 text-sm">
           <div>
-            <div className={label}>장소 이름</div>
+            <span className={label}>장소 이름</span>
             <input
               className={field}
               value={zone.data.label}
@@ -181,7 +242,7 @@ export default function PropertiesPanel() {
             />
           </div>
           <div>
-            <div className={label}>색상</div>
+            <span className={label}>색상</span>
             <select
               className={field}
               value={zone.data.color}
@@ -194,30 +255,78 @@ export default function PropertiesPanel() {
               ))}
             </select>
           </div>
-          <p className="text-[11px] text-gray-400">
-            모서리를 끌어 크기를 조절할 수 있습니다.
-          </p>
+          <p className="text-[11px] text-gray-400">모서리를 끌어 크기를 조절할 수 있습니다.</p>
           <button type="button" onClick={() => removeNode(zone.id)} className={deleteBtn}>
             장소 삭제
           </button>
         </div>
       )}
 
-      {/* 장비 편집 */}
+      {/* ─────────── 장비 ─────────── */}
       {device && (
         <div className="space-y-4 text-sm">
+          {/* 기본 정보 */}
           <div className="space-y-2">
             <div>
-              <div className={label}>이름</div>
+              <span className={label}>이름</span>
               <input
-                className={field}
+                className={`${field} font-medium`}
                 value={device.data.label}
                 onChange={(e) => updateDevice(device.id, { label: e.target.value })}
               />
             </div>
+
+            {/* 아이콘 이미지 */}
+            <div>
+              <span className={label}>아이콘</span>
+              <div className="flex items-center gap-2">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md border border-gray-200 bg-white">
+                  {device.data.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={device.data.image}
+                      alt=""
+                      className="max-h-full max-w-full object-contain"
+                    />
+                  ) : (
+                    <CategoryIcon
+                      category={device.data.category}
+                      className={`h-7 w-7 ${
+                        (CATEGORY_STYLE[device.data.category] ?? CATEGORY_STYLE.pc).icon
+                      }`}
+                    />
+                  )}
+                </div>
+                <div className="flex flex-col items-start gap-1">
+                  <button type="button" onClick={() => fileRef.current?.click()} className={ghostBtn}>
+                    이미지 등록
+                  </button>
+                  {device.data.image && (
+                    <button
+                      type="button"
+                      onClick={() => updateDevice(device.id, { image: undefined })}
+                      className="text-[11px] text-red-400 hover:text-red-600"
+                    >
+                      기본 아이콘으로
+                    </button>
+                  )}
+                </div>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={onPickImage}
+                />
+              </div>
+            </div>
+
+            <div className="text-[11px] text-gray-400">
+              카테고리: {device.data.category}
+            </div>
             {advanced && (
               <div>
-                <div className={label}>모델 (선택)</div>
+                <span className={label}>모델 키 (선택)</span>
                 <input
                   className={field}
                   value={device.data.model ?? ""}
@@ -228,12 +337,12 @@ export default function PropertiesPanel() {
                 />
               </div>
             )}
-            <div className={label}>카테고리: {device.data.category}</div>
           </div>
 
+          {/* 포트 */}
           <div>
-            <div className="mb-1 flex items-center justify-between">
-              <span className={label}>I/O 포트 ({device.data.ports.length})</span>
+            <div className="mb-1.5 flex items-center justify-between">
+              <span className={sectionTitle}>I/O 포트 ({device.data.ports.length})</span>
               <button
                 type="button"
                 onClick={() =>
@@ -244,21 +353,19 @@ export default function PropertiesPanel() {
                     signal: "analog_audio",
                   })
                 }
-                className="rounded border border-gray-300 bg-white px-1.5 py-0.5 text-[11px] text-gray-600 hover:border-blue-400 hover:bg-blue-50"
+                className={ghostBtn}
               >
-                + 포트 추가
+                + 추가
               </button>
             </div>
 
             <ul className="space-y-2">
               {device.data.ports.map((p) => (
-                <li
-                  key={p.id}
-                  className="space-y-1.5 rounded border border-gray-200 bg-white p-2"
-                >
-                  <div className="flex items-center gap-1.5">
+                <li key={p.id} className="rounded-lg border border-gray-200 bg-white p-2">
+                  <div className="mb-1.5 flex items-center gap-1.5">
+                    <span className={`h-2 w-2 shrink-0 rounded-full ${dotColor(p.direction)}`} />
                     <input
-                      className={`${field} flex-1`}
+                      className="min-w-0 flex-1 rounded-md border border-gray-200 px-1.5 py-1 text-sm text-gray-800 focus:border-blue-500 focus:outline-none"
                       value={p.name}
                       onChange={(e) =>
                         updatePort(device.id, p.id, { name: e.target.value })
@@ -268,17 +375,17 @@ export default function PropertiesPanel() {
                       type="button"
                       title="포트 삭제"
                       onClick={() => removePort(device.id, p.id)}
-                      className="rounded border border-gray-200 px-1.5 py-1 text-gray-400 hover:border-red-300 hover:text-red-500"
+                      className="shrink-0 rounded-md px-1.5 py-1 text-gray-300 hover:bg-red-50 hover:text-red-500"
                     >
                       ✕
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-1.5">
+                  <div className="flex items-center gap-1.5">
                     <select
-                      className={field}
+                      className={selectSm}
                       value={p.direction}
-                      title="입력 / 출력 / 데이터(양방향)"
+                      title="입력 / 출력 / 양방향"
                       onChange={(e) =>
                         updatePort(device.id, p.id, {
                           direction: e.target
@@ -292,10 +399,8 @@ export default function PropertiesPanel() {
                         </option>
                       ))}
                     </select>
-
-                    {/* 단자(암/수 등) — 기본 항목으로 노출 */}
                     <select
-                      className={field}
+                      className={selectSm}
                       value={p.connector ?? ""}
                       title="단자 모양"
                       onChange={(e) =>
@@ -310,11 +415,15 @@ export default function PropertiesPanel() {
                         </option>
                       ))}
                     </select>
+                    <SideToggle
+                      value={effSide(p)}
+                      onChange={(s) => updatePort(device.id, p.id, { side: s })}
+                    />
                   </div>
 
                   {advanced && (
                     <select
-                      className={field}
+                      className={`${selectSm} mt-1.5`}
                       value={p.signal}
                       title="신호 종류"
                       onChange={(e) =>
