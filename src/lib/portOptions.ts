@@ -44,3 +44,30 @@ export const CONNECTOR_OPTIONS: { value: ConnectorType | ""; label: string }[] =
   { value: "euroblock", label: "유로블럭" },
   { value: "unknown", label: "기타" },
 ];
+
+// 엣지 끝 배지에 표시할 짧은 코드
+export const CONNECTOR_SHORT: Record<string, string> = {
+  xlr_m: "XLRm",
+  xlr_f: "XLRf",
+  combo_xlr_trs: "콤보",
+  trs: "TRS",
+  ts: "TS",
+  rca: "RCA",
+  minijack_3p5: "3.5",
+  speakon: "SPK",
+  banana_binding: "바나나",
+  etherCON: "이더콘",
+  rj45: "RJ45",
+  usb_a: "USB-A",
+  usb_b: "USB-B",
+  usb_c: "USB-C",
+  hdmi: "HDMI",
+  sdi_bnc: "SDI",
+  vga: "VGA",
+  toslink: "광",
+  midi_din: "MIDI",
+  iec_power: "IEC",
+  dc_power: "DC",
+  euroblock: "유로",
+  unknown: "기타",
+};

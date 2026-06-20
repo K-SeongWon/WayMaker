@@ -9,7 +9,8 @@ function cleanDetail(data: unknown): EdgeDetail | undefined {
   const out: EdgeDetail = {};
   if (d.displayLabel?.trim()) out.displayLabel = d.displayLabel.trim();
   if (d.deviceLabel?.trim()) out.deviceLabel = d.deviceLabel.trim();
-  if (d.cableConnector) out.cableConnector = d.cableConnector;
+  if (d.connectorFrom) out.connectorFrom = d.connectorFrom;
+  if (d.connectorTo) out.connectorTo = d.connectorTo;
   if (typeof d.cableLength_m === "number" && !Number.isNaN(d.cableLength_m))
     out.cableLength_m = d.cableLength_m;
   if (d.note?.trim()) out.note = d.note.trim();

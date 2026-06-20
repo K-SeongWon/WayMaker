@@ -93,7 +93,8 @@ export type AppNode = DeviceNodeT | ZoneNodeT;
 export interface EdgeDetail {
   displayLabel?: string; // 우리 화면용 라벨
   deviceLabel?: string; // 장비에 적힌 라벨
-  cableConnector?: ConnectorType; // 케이블 끝 단자
+  connectorFrom?: ConnectorType; // 시작(출발) 끝 단자
+  connectorTo?: ConnectorType; // 도착(끝) 단자
   cableLength_m?: number;
   note?: string;
   [key: string]: unknown;

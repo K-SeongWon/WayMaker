@@ -99,23 +99,43 @@ export default function PropertiesPanel() {
               }
             />
           </div>
-          <div>
-            <div className={label}>케이블 단자</div>
-            <select
-              className={field}
-              value={ed.cableConnector ?? ""}
-              onChange={(e) =>
-                updateEdge(edge.id, {
-                  cableConnector: (e.target.value as ConnectorType) || undefined,
-                })
-              }
-            >
-              {CONNECTOR_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <div className={label}>시작 단자 ({nodeLabel(edge.source)})</div>
+              <select
+                className={field}
+                value={ed.connectorFrom ?? ""}
+                onChange={(e) =>
+                  updateEdge(edge.id, {
+                    connectorFrom: (e.target.value as ConnectorType) || undefined,
+                  })
+                }
+              >
+                {CONNECTOR_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <div className={label}>끝 단자 ({nodeLabel(edge.target)})</div>
+              <select
+                className={field}
+                value={ed.connectorTo ?? ""}
+                onChange={(e) =>
+                  updateEdge(edge.id, {
+                    connectorTo: (e.target.value as ConnectorType) || undefined,
+                  })
+                }
+              >
+                {CONNECTOR_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
           <div>
             <div className={label}>케이블 길이 (m)</div>

@@ -16,6 +16,7 @@ import "@xyflow/react/dist/style.css";
 
 import DeviceNode from "./DeviceNode";
 import ZoneNode from "./ZoneNode";
+import CableEdge from "./CableEdge";
 import ExportPanel from "./ExportPanel";
 import { getPreset, deviceDataFromPreset } from "@/lib/devices";
 import { ZONE_PRESETS, ZONE_DEFAULT_SIZE } from "@/lib/zones";
@@ -24,6 +25,7 @@ import type { DeviceNodeT, ZoneNodeT } from "@/lib/types";
 import { useWayMapStore, nextDeviceId, nextZoneId } from "@/store/waymapStore";
 
 const nodeTypes: NodeTypes = { device: DeviceNode, zone: ZoneNode };
+const edgeTypes = { cable: CableEdge };
 
 function Flow() {
   const nodes = useWayMapStore((s) => s.nodes);
@@ -53,7 +55,7 @@ function Flow() {
   const renderEdges = useMemo(
     () =>
       edges.map((e) => {
-        let ne = e;
+        let ne = { ...e, type: "cable" as const };
         if (flow) {
           ne = flow.edgeIds.has(e.id)
             ? { ...ne, animated: true, style: { ...ne.style, stroke: "#10b981", strokeWidth: 2.5 } }
@@ -134,6 +136,7 @@ function Flow() {
         onConnect={onConnect}
         connectionMode={ConnectionMode.Loose}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         onNodeClick={(_, n) => setSelectedId(n.id)}
         onEdgeClick={(_, e) => setSelectedEdgeId(e.id)}
         onPaneClick={() => setSelectedId(null)}
