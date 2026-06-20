@@ -207,7 +207,8 @@ export function buildStandaloneHtml(doc: WayMapDoc): string {
     "#wm.focus .dev.hi,#wm.focus .dev.sel{opacity:1}",
     "#wm.focus .dev.sel{box-shadow:0 0 0 2px #3b82f6}",
     "#wm.focus svg.edges path{opacity:.08}",
-    "#wm.focus svg.edges path.hi{opacity:1;stroke:#2563eb;stroke-width:2.5}",
+    "#wm.focus svg.edges path.hi{opacity:1;stroke:#10b981;stroke-width:2.5;stroke-dasharray:7 5;animation:wmflow 1s linear infinite}",
+    "@keyframes wmflow{to{stroke-dashoffset:-24}}",
   ].join("");
 
   // 인터랙션 스크립트(백틱 미사용)

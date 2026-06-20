@@ -35,6 +35,7 @@ interface WayMapState {
   title: string;
   selectedId: string | null;
   selectedEdgeId: string | null;
+  flowMode: boolean;
 
   onNodesChange: OnNodesChange<AppNode>;
   onEdgesChange: OnEdgesChange;
@@ -45,6 +46,7 @@ interface WayMapState {
   setSelectedId: (id: string | null) => void;
   setSelectedEdgeId: (id: string | null) => void;
   setTitle: (title: string) => void;
+  toggleFlowMode: () => void;
 
   // ── 연결선(케이블) 편집 ──
   updateEdge: (id: string, patch: Partial<EdgeDetail>) => void;
@@ -70,6 +72,7 @@ export const useWayMapStore = create<WayMapState>((set, get) => ({
   title: "",
   selectedId: null,
   selectedEdgeId: null,
+  flowMode: true,
 
   onNodesChange: (changes) => set({ nodes: applyNodeChanges(changes, get().nodes) }),
   onEdgesChange: (changes) => set({ edges: applyEdgeChanges(changes, get().edges) }),
@@ -81,6 +84,7 @@ export const useWayMapStore = create<WayMapState>((set, get) => ({
   setSelectedId: (id) => set({ selectedId: id, selectedEdgeId: null }),
   setSelectedEdgeId: (id) => set({ selectedEdgeId: id, selectedId: null }),
   setTitle: (title) => set({ title }),
+  toggleFlowMode: () => set({ flowMode: !get().flowMode }),
 
   updateEdge: (id, patch) =>
     set({
