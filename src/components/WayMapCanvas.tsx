@@ -15,6 +15,7 @@ import "@xyflow/react/dist/style.css";
 
 import DeviceNode from "./DeviceNode";
 import ZoneNode from "./ZoneNode";
+import ExportPanel from "./ExportPanel";
 import { getPreset, deviceDataFromPreset } from "@/lib/devices";
 import { ZONE_PRESETS, ZONE_DEFAULT_SIZE } from "@/lib/zones";
 import type { DeviceNodeT, ZoneNodeT } from "@/lib/types";
@@ -94,6 +95,7 @@ function Flow() {
         <Background />
         <Controls />
         <MiniMap pannable zoomable />
+        <ExportPanel />
       </ReactFlow>
     </div>
   );
