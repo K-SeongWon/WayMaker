@@ -8,10 +8,12 @@ import type {
   SignalType,
 } from "./types";
 
-// ── 장비 라이브러리 ─────────────────────────────────────────────
-// 프리셋은 포트를 "그룹"(count로 반복)으로 선언하고, 인스턴스화 시 개별 포트로 확장한다.
-// 잘 알려진 장비는 제조사/판매처 스펙 기반(아래 sources 주석), 일반/비공개 장비는
-// 타입 기반 합리적 기본값(편집 가능). confidence가 medium/low면 사용자가 확인·수정 권장.
+// ── 장치 라이브러리 ─────────────────────────────────────────────
+// 구조: 장치 "종류(type)" → 그 안의 "모델(model)" 또는 "Default".
+//  - 팔레트에는 종류만 노출(디지털 믹서, 유선 마이크 …).
+//  - 드롭할 때 내장 제조사/모델을 고르면 실제 스펙대로, Default를 고르면
+//    종류별 기본 포트로 노드가 생성된다.
+//  - 새 장치는 아래 DEVICE_MODELS 배열에 데이터만 추가하면 됨(시트/PR로 확장 용이).
 
 export interface PortGroup {
   name: string;
@@ -19,96 +21,346 @@ export interface PortGroup {
   signal: SignalType;
   connector?: ConnectorType;
   count?: number; // 기본 1
-  /** count개에 채널 1..n 부여(스네이크 채널 매칭) */
-  channelize?: boolean;
-  /** 멀티채널 트렁크 포트(예: RJ45) */
-  trunk?: boolean;
+  channelize?: boolean; // count개에 채널 1..n 부여(스네이크 매칭)
+  trunk?: boolean; // 멀티채널 트렁크(예: RJ45)
 }
 
-export interface DevicePreset {
+// 장치 종류(팔레트 단위). defaultPorts = "Default" 선택 시 포트.
+export interface DeviceTypeDef {
+  id: string;
+  label: string;
+  group: "음향" | "영상" | "네트워크 / 기타";
+  category: DeviceCategory; // 아이콘/색상
+  defaultPorts: PortGroup[];
+  routing?: DeviceRouting;
+}
+
+// 특정 제조사/모델 프리셋(한 종류에 속함).
+export interface DeviceModelDef {
   key: string;
-  brand?: string;
-  model: string; // 노드 기본 라벨
-  category: DeviceCategory;
+  typeId: string;
+  brand: string;
+  model: string;
   ports: PortGroup[];
-  routing?: DeviceRouting; // 내부 신호 라우팅(없으면 mesh)
+  routing?: DeviceRouting;
   note?: string;
   confidence?: "high" | "medium" | "low";
 }
 
-export const CATEGORY_META: Record<DeviceCategory, { label: string }> = {
-  mixer: { label: "믹서" },
-  stagebox: { label: "스테이지박스" },
-  speaker: { label: "메인 스피커" },
-  monitor_speaker: { label: "모니터 스피커" },
-  subwoofer: { label: "서브우퍼" },
-  mic: { label: "마이크" },
-  wireless: { label: "무선마이크" },
-  di: { label: "다이렉트박스" },
-  instrument: { label: "악기 / 건반" },
-  camera: { label: "카메라" },
-  video_mixer: { label: "비디오 믹서" },
-  video_matrix: { label: "HDMI 매트릭스" },
-  projector: { label: "프로젝터" },
-  display: { label: "디스플레이" },
-  network: { label: "네트워크" },
-  pc: { label: "PC" },
-};
+// 공통 포트 그룹 헬퍼
+const POWER: PortGroup = { name: "POWER", direction: "in", signal: "power", connector: "iec_power" };
+const DC: PortGroup = { name: "DC IN", direction: "in", signal: "power", connector: "dc_power" };
 
-export const CATEGORY_ORDER: DeviceCategory[] = [
-  "mixer",
-  "stagebox",
-  "mic",
-  "wireless",
-  "di",
-  "instrument",
-  "speaker",
-  "monitor_speaker",
-  "subwoofer",
-  "video_mixer",
-  "video_matrix",
-  "camera",
-  "projector",
-  "display",
-  "network",
-  "pc",
+export const TYPE_GROUP_ORDER: DeviceTypeDef["group"][] = [
+  "음향",
+  "영상",
+  "네트워크 / 기타",
 ];
 
-// 우리 교회 장비 우선. 출처는 조사된 제조사/판매처 스펙(2026-06-20 기준).
-export const DEVICE_PRESETS: DevicePreset[] = [
-  // ── 믹서 / 스테이지박스 (Behringer, 출처: behringerwiki/Sweetwater/Thomann) ──
+export const DEVICE_TYPES: DeviceTypeDef[] = [
+  // ── 음향 ──
+  {
+    id: "digital_mixer",
+    label: "디지털 오디오 믹서",
+    group: "음향",
+    category: "mixer",
+    defaultPorts: [
+      { name: "IN", direction: "in", signal: "analog_audio", connector: "xlr_f", count: 8 },
+      { name: "XLR OUT", direction: "out", signal: "analog_audio", connector: "xlr_m", count: 8 },
+      { name: "AES50 A", direction: "bidi", signal: "digital_audio", connector: "etherCON" },
+      { name: "AES50 B", direction: "bidi", signal: "digital_audio", connector: "etherCON" },
+      POWER,
+    ],
+  },
+  {
+    id: "analog_mixer",
+    label: "아날로그 오디오 믹서",
+    group: "음향",
+    category: "mixer",
+    defaultPorts: [
+      { name: "IN", direction: "in", signal: "analog_audio", connector: "combo_xlr_trs", count: 8 },
+      { name: "MAIN OUT", direction: "out", signal: "analog_audio", connector: "xlr_m", count: 2 },
+      { name: "AUX OUT", direction: "out", signal: "analog_audio", connector: "trs", count: 2 },
+      POWER,
+    ],
+  },
+  {
+    id: "stagebox",
+    label: "디지털 스테이지박스",
+    group: "음향",
+    category: "stagebox",
+    defaultPorts: [
+      { name: "IN", direction: "in", signal: "analog_audio", connector: "xlr_f", count: 8 },
+      { name: "XLR OUT", direction: "out", signal: "analog_audio", connector: "xlr_m", count: 8 },
+      { name: "AES50 A", direction: "bidi", signal: "digital_audio", connector: "etherCON" },
+      { name: "AES50 B", direction: "bidi", signal: "digital_audio", connector: "etherCON" },
+      POWER,
+    ],
+  },
+  {
+    id: "wired_mic",
+    label: "유선 마이크",
+    group: "음향",
+    category: "mic",
+    defaultPorts: [{ name: "OUT", direction: "out", signal: "analog_audio", connector: "xlr_m" }],
+  },
+  {
+    id: "wireless_mic_rx",
+    label: "무선 마이크 수신기",
+    group: "음향",
+    category: "wireless",
+    defaultPorts: [
+      { name: "OUT", direction: "out", signal: "analog_audio", connector: "xlr_m", count: 2 },
+      { name: "MIX OUT", direction: "out", signal: "analog_audio", connector: "ts" },
+      DC,
+    ],
+  },
+  {
+    id: "di_box",
+    label: "다이렉트 박스 (DI)",
+    group: "음향",
+    category: "di",
+    defaultPorts: [
+      { name: "INPUT", direction: "in", signal: "analog_audio", connector: "ts" },
+      { name: "THRU", direction: "out", signal: "analog_audio", connector: "ts" },
+      { name: "XLR OUT", direction: "out", signal: "analog_audio", connector: "xlr_m" },
+    ],
+  },
+  {
+    id: "keyboard",
+    label: "전자 건반 / 피아노",
+    group: "음향",
+    category: "instrument",
+    defaultPorts: [
+      { name: "LINE OUT", direction: "out", signal: "analog_audio", connector: "trs", count: 2 },
+      { name: "PHONES", direction: "out", signal: "analog_audio", connector: "trs" },
+      { name: "USB TO HOST", direction: "bidi", signal: "digital_audio", connector: "usb_b" },
+      { name: "SUSTAIN", direction: "in", signal: "control", connector: "ts" },
+      DC,
+    ],
+  },
+  {
+    id: "powered_speaker",
+    label: "액티브 스피커",
+    group: "음향",
+    category: "speaker",
+    defaultPorts: [
+      { name: "INPUT", direction: "in", signal: "analog_audio", connector: "combo_xlr_trs" },
+      { name: "LINK OUT", direction: "out", signal: "analog_audio", connector: "xlr_m" },
+      POWER,
+    ],
+  },
+  {
+    id: "passive_speaker",
+    label: "패시브 스피커",
+    group: "음향",
+    category: "speaker",
+    defaultPorts: [
+      { name: "INPUT", direction: "in", signal: "analog_audio", connector: "speakon" },
+      { name: "LINK", direction: "out", signal: "analog_audio", connector: "speakon" },
+    ],
+  },
+  {
+    id: "monitor_speaker",
+    label: "모니터 스피커",
+    group: "음향",
+    category: "monitor_speaker",
+    defaultPorts: [
+      { name: "INPUT", direction: "in", signal: "analog_audio", connector: "combo_xlr_trs" },
+      { name: "THRU", direction: "out", signal: "analog_audio", connector: "xlr_m" },
+      POWER,
+    ],
+  },
+  {
+    id: "subwoofer",
+    label: "서브우퍼",
+    group: "음향",
+    category: "subwoofer",
+    defaultPorts: [
+      { name: "INPUT", direction: "in", signal: "analog_audio", connector: "xlr_f", count: 2 },
+      { name: "OUT", direction: "out", signal: "analog_audio", connector: "xlr_m", count: 2 },
+      POWER,
+    ],
+  },
+
+  // ── 영상 ──
+  {
+    id: "video_switcher",
+    label: "비디오 스위처",
+    group: "영상",
+    category: "video_mixer",
+    defaultPorts: [
+      { name: "HDMI IN", direction: "in", signal: "video", connector: "hdmi", count: 4 },
+      { name: "HDMI OUT", direction: "out", signal: "video", connector: "hdmi" },
+      { name: "USB-C", direction: "out", signal: "video", connector: "usb_c" },
+      { name: "ETHERNET", direction: "bidi", signal: "network", connector: "rj45" },
+      DC,
+    ],
+  },
+  {
+    id: "video_matrix",
+    label: "HDMI 매트릭스",
+    group: "영상",
+    category: "video_matrix",
+    defaultPorts: [
+      { name: "HDMI IN", direction: "in", signal: "video", connector: "hdmi", count: 4 },
+      { name: "HDMI OUT", direction: "out", signal: "video", connector: "hdmi", count: 2 },
+      DC,
+    ],
+  },
+  {
+    id: "camera",
+    label: "카메라",
+    group: "영상",
+    category: "camera",
+    defaultPorts: [
+      { name: "HDMI OUT", direction: "out", signal: "video", connector: "hdmi" },
+      { name: "SDI OUT", direction: "out", signal: "video", connector: "sdi_bnc" },
+      { name: "LAN", direction: "bidi", signal: "network", connector: "rj45" },
+      DC,
+    ],
+  },
+  {
+    id: "projector",
+    label: "프로젝터",
+    group: "영상",
+    category: "projector",
+    defaultPorts: [
+      { name: "HDMI IN", direction: "in", signal: "video", connector: "hdmi" },
+      { name: "VGA IN", direction: "in", signal: "video", connector: "vga" },
+      POWER,
+    ],
+  },
+  {
+    id: "display",
+    label: "디스플레이 / TV",
+    group: "영상",
+    category: "display",
+    defaultPorts: [
+      { name: "HDMI IN", direction: "in", signal: "video", connector: "hdmi" },
+      POWER,
+    ],
+  },
+
+  // ── 네트워크 / 기타 ──
+  {
+    id: "xlr_extender",
+    label: "XLR 랜 익스텐더",
+    group: "네트워크 / 기타",
+    category: "network",
+    routing: "snake",
+    defaultPorts: [
+      { name: "XLR", direction: "bidi", signal: "analog_audio", connector: "xlr_f", count: 4, channelize: true },
+      { name: "RJ45 (Cat5)", direction: "bidi", signal: "network", connector: "rj45", trunk: true },
+    ],
+  },
+  {
+    id: "network_switch",
+    label: "네트워크 스위치 / AP",
+    group: "네트워크 / 기타",
+    category: "network",
+    defaultPorts: [
+      { name: "LAN", direction: "bidi", signal: "network", connector: "rj45", count: 5 },
+      DC,
+    ],
+  },
+  {
+    id: "pc",
+    label: "PC",
+    group: "네트워크 / 기타",
+    category: "pc",
+    defaultPorts: [
+      { name: "LINE OUT", direction: "out", signal: "analog_audio", connector: "trs" },
+      { name: "LINE IN", direction: "in", signal: "analog_audio", connector: "trs" },
+      { name: "HDMI", direction: "out", signal: "video", connector: "hdmi" },
+      { name: "USB", direction: "bidi", signal: "digital_audio", connector: "usb_a", count: 2 },
+      { name: "ETHERNET", direction: "bidi", signal: "network", connector: "rj45" },
+      POWER,
+    ],
+  },
+];
+
+// X32 공통 디지털/제어 포트(아날로그 in/out 외)
+const x32Digital: PortGroup[] = [
+  { name: "AES50 A", direction: "bidi", signal: "digital_audio", connector: "etherCON" },
+  { name: "AES50 B", direction: "bidi", signal: "digital_audio", connector: "etherCON" },
+  { name: "AES/EBU OUT", direction: "out", signal: "digital_audio", connector: "xlr_m" },
+  { name: "ULTRANET P16", direction: "out", signal: "digital_audio", connector: "rj45" },
+  { name: "카드 슬롯", direction: "bidi", signal: "digital_audio", connector: "unknown" },
+  { name: "MIDI IN", direction: "in", signal: "control", connector: "midi_din" },
+  { name: "MIDI OUT", direction: "out", signal: "control", connector: "midi_din" },
+  { name: "ETHERNET", direction: "bidi", signal: "network", connector: "rj45" },
+  { name: "PHONES", direction: "out", signal: "analog_audio", connector: "trs", count: 2 },
+  POWER,
+];
+
+export const DEVICE_MODELS: DeviceModelDef[] = [
+  // 디지털 믹서 — Behringer X32 시리즈 (출처: behringerwiki/Sweetwater/Thomann)
+  {
+    key: "behringer-x32-full",
+    typeId: "digital_mixer",
+    brand: "Behringer",
+    model: "X32 (Full)",
+    confidence: "medium",
+    note: "32 로컬 마이크 입력 / 16 XLR 출력.",
+    ports: [
+      { name: "IN", direction: "in", signal: "analog_audio", connector: "xlr_f", count: 32 },
+      { name: "XLR OUT", direction: "out", signal: "analog_audio", connector: "xlr_m", count: 16 },
+      { name: "AUX IN", direction: "in", signal: "analog_audio", connector: "trs", count: 6 },
+      { name: "AUX OUT", direction: "out", signal: "analog_audio", connector: "trs", count: 6 },
+      ...x32Digital,
+    ],
+  },
   {
     key: "behringer-x32-compact",
+    typeId: "digital_mixer",
     brand: "Behringer",
     model: "X32 Compact",
-    category: "mixer",
     confidence: "high",
-    note: "로컬 16 마이크 입력 / 8 XLR 출력, AES50 A·B, ULTRANET(P16), AES/EBU, 카드 슬롯.",
+    note: "16 마이크 입력 / 8 XLR 출력.",
     ports: [
       { name: "IN", direction: "in", signal: "analog_audio", connector: "xlr_f", count: 16 },
       { name: "XLR OUT", direction: "out", signal: "analog_audio", connector: "xlr_m", count: 8 },
       { name: "AUX IN", direction: "in", signal: "analog_audio", connector: "trs", count: 6 },
       { name: "AUX OUT", direction: "out", signal: "analog_audio", connector: "trs", count: 6 },
-      { name: "AES50 A", direction: "bidi", signal: "digital_audio", connector: "etherCON" },
-      { name: "AES50 B", direction: "bidi", signal: "digital_audio", connector: "etherCON" },
-      { name: "AES/EBU OUT", direction: "out", signal: "digital_audio", connector: "xlr_m" },
-      { name: "ULTRANET P16", direction: "out", signal: "digital_audio", connector: "rj45" },
-      { name: "카드 슬롯", direction: "bidi", signal: "digital_audio", connector: "unknown" },
-      { name: "MIDI IN", direction: "in", signal: "control", connector: "midi_din" },
-      { name: "MIDI OUT", direction: "out", signal: "control", connector: "midi_din" },
-      { name: "USB REC", direction: "bidi", signal: "digital_audio", connector: "usb_a" },
-      { name: "ETHERNET", direction: "bidi", signal: "network", connector: "rj45" },
-      { name: "PHONES", direction: "out", signal: "analog_audio", connector: "trs", count: 2 },
-      { name: "POWER", direction: "in", signal: "power", connector: "iec_power" },
+      ...x32Digital,
     ],
   },
   {
+    key: "behringer-x32-producer",
+    typeId: "digital_mixer",
+    brand: "Behringer",
+    model: "X32 Producer",
+    confidence: "medium",
+    note: "랙형. 16 마이크 입력 / 8 XLR 출력.",
+    ports: [
+      { name: "IN", direction: "in", signal: "analog_audio", connector: "xlr_f", count: 16 },
+      { name: "XLR OUT", direction: "out", signal: "analog_audio", connector: "xlr_m", count: 8 },
+      ...x32Digital,
+    ],
+  },
+  {
+    key: "behringer-x32-rack",
+    typeId: "digital_mixer",
+    brand: "Behringer",
+    model: "X32 Rack",
+    confidence: "medium",
+    note: "랙형. 16 마이크 입력 / 8 XLR 출력.",
+    ports: [
+      { name: "IN", direction: "in", signal: "analog_audio", connector: "xlr_f", count: 16 },
+      { name: "XLR OUT", direction: "out", signal: "analog_audio", connector: "xlr_m", count: 8 },
+      ...x32Digital,
+    ],
+  },
+
+  // 스테이지박스
+  {
     key: "behringer-sd16",
+    typeId: "stagebox",
     brand: "Behringer",
     model: "SD16",
-    category: "stagebox",
     confidence: "high",
-    note: "16 MIDAS 프리앰프 입력 / 8 XLR 출력, AES50 A·B, ULTRANET(P16) 허브.",
+    note: "16 MIDAS 프리앰프 입력 / 8 XLR 출력, AES50 A·B, ULTRANET 허브.",
     ports: [
       { name: "IN", direction: "in", signal: "analog_audio", connector: "xlr_f", count: 16 },
       { name: "XLR OUT", direction: "out", signal: "analog_audio", connector: "xlr_m", count: 8 },
@@ -116,60 +368,53 @@ export const DEVICE_PRESETS: DevicePreset[] = [
       { name: "AES50 B", direction: "bidi", signal: "digital_audio", connector: "etherCON" },
       { name: "ULTRANET P16", direction: "out", signal: "digital_audio", connector: "rj45" },
       { name: "USB (펌웨어)", direction: "in", signal: "control", connector: "usb_b" },
-      { name: "POWER", direction: "in", signal: "power", connector: "iec_power" },
+      POWER,
     ],
   },
 
-  // ── 마이크 ──
+  // 유선 마이크
   {
     key: "sennheiser-xs1",
+    typeId: "wired_mic",
     brand: "Sennheiser",
     model: "XS 1",
-    category: "mic",
     confidence: "high",
-    note: "다이나믹 보컬 마이크(카디오이드), 패시브. 본체 XLR(수) 출력.",
+    note: "다이나믹 보컬(카디오이드), 패시브, XLR(수) 출력.",
     ports: [{ name: "OUT", direction: "out", signal: "analog_audio", connector: "xlr_m" }],
   },
   {
     key: "akg-c1000s",
+    typeId: "wired_mic",
     brand: "AKG",
     model: "C1000 S",
-    category: "mic",
     confidence: "high",
-    note: "소형 콘덴서(카디오이드), 팬텀 9~52V 또는 배터리. 성가대용. XLR(수) 출력.",
-    ports: [{ name: "OUT", direction: "out", signal: "analog_audio", connector: "xlr_m" }],
-  },
-  {
-    key: "gooseneck-condenser",
-    model: "구즈넥 콘덴서 마이크",
-    category: "mic",
-    confidence: "medium",
-    note: "강대상용 구즈넥 콘덴서(팬텀 필요). 일반형 — 실제 모델에 맞게 편집.",
+    note: "소형 콘덴서(카디오이드), 팬텀/배터리. XLR(수) 출력.",
     ports: [{ name: "OUT", direction: "out", signal: "analog_audio", connector: "xlr_m" }],
   },
 
-  // ── 무선마이크 ──
+  // 무선 마이크 수신기
   {
     key: "kannals-mw-620",
+    typeId: "wireless_mic_rx",
     brand: "KANNALS",
-    model: "MW-620 (무선 수신기)",
-    category: "wireless",
+    model: "MW-620",
     confidence: "low",
-    note: "공개 스펙 없음 — 일반 2채널 UHF 수신기로 모델링(밸런스 출력 2 + 믹스 출력 1). 실제 단자에 맞게 편집.",
+    note: "공개 스펙 없음 — 일반 2채널 UHF 수신기로 모델링. 실제 단자에 맞게 편집.",
     ports: [
-      { name: "OUT (밸런스)", direction: "out", signal: "analog_audio", connector: "xlr_m", count: 2 },
+      { name: "OUT", direction: "out", signal: "analog_audio", connector: "xlr_m", count: 2 },
       { name: "MIX OUT", direction: "out", signal: "analog_audio", connector: "ts" },
-      { name: "DC IN", direction: "in", signal: "power", connector: "dc_power" },
+      DC,
     ],
   },
 
-  // ── 다이렉트 박스 ──
+  // 다이렉트 박스
   {
-    key: "dual-passive-di",
-    model: "듀얼 패시브 DI (위치스 브룸스틱)",
-    category: "di",
+    key: "witches-broomstick-dual-di",
+    typeId: "di_box",
+    brand: "위치스",
+    model: "브룸스틱 듀얼 DI",
     confidence: "low",
-    note: "2채널 패시브 다이렉트 박스(일반형). 입력 2, 패러렐 스루 2, XLR 출력 2.",
+    note: "2채널 패시브 DI(일반형). 입력 2, 스루 2, XLR 출력 2.",
     ports: [
       { name: "INPUT", direction: "in", signal: "analog_audio", connector: "ts", count: 2 },
       { name: "THRU", direction: "out", signal: "analog_audio", connector: "ts", count: 2 },
@@ -177,177 +422,112 @@ export const DEVICE_PRESETS: DevicePreset[] = [
     ],
   },
 
-  // ── 악기 / 건반 (Yamaha, 출처: Yamaha 스펙/매뉴얼) ──
+  // 건반
   {
     key: "yamaha-p225",
+    typeId: "keyboard",
     brand: "Yamaha",
     model: "P-225",
-    category: "instrument",
     confidence: "high",
-    note: "전자 피아노. 전용 AUX OUT(L/R) 라인 출력 + PHONES 2, USB TO HOST, 서스테인.",
+    note: "전자 피아노. 전용 AUX OUT(L/R), PHONES 2, USB TO HOST, 서스테인.",
     ports: [
       { name: "AUX OUT", direction: "out", signal: "analog_audio", connector: "trs", count: 2 },
       { name: "PHONES", direction: "out", signal: "analog_audio", connector: "trs", count: 2 },
       { name: "USB TO HOST", direction: "bidi", signal: "digital_audio", connector: "usb_b" },
       { name: "SUSTAIN", direction: "in", signal: "control", connector: "trs" },
-      { name: "DC IN", direction: "in", signal: "power", connector: "dc_power" },
+      DC,
     ],
   },
   {
     key: "yamaha-dgx220",
+    typeId: "keyboard",
     brand: "Yamaha",
     model: "DGX-220",
-    category: "instrument",
     confidence: "medium",
-    note: "포터블 키보드. PHONES/OUTPUT 겸용 잭(라인 출력 겸용), USB TO HOST, 서스테인.",
+    note: "포터블 키보드. PHONES/OUTPUT 겸용, USB TO HOST, 서스테인.",
     ports: [
       { name: "PHONES/OUT", direction: "out", signal: "analog_audio", connector: "trs" },
       { name: "USB TO HOST", direction: "bidi", signal: "digital_audio", connector: "usb_b" },
       { name: "SUSTAIN", direction: "in", signal: "control", connector: "ts" },
-      { name: "DC IN", direction: "in", signal: "power", connector: "dc_power" },
+      DC,
     ],
   },
 
-  // ── 스피커 / 모니터 / 서브 (출처: JBL/Behringer 스펙) ──
+  // 스피커류
   {
     key: "jbl-eon615",
+    typeId: "powered_speaker",
     brand: "JBL",
     model: "EON615",
-    category: "speaker",
     confidence: "high",
-    note: "액티브 메인 2-way. 콤보 XLR/TRS 입력 2 + XLR 루프스루 2. 블루투스(무선).",
+    note: "액티브 2-way. 콤보 XLR/TRS 입력 2 + XLR 루프스루 2. 블루투스.",
     ports: [
       { name: "INPUT", direction: "in", signal: "analog_audio", connector: "combo_xlr_trs", count: 2 },
       { name: "LINK OUT", direction: "out", signal: "analog_audio", connector: "xlr_m", count: 2 },
-      { name: "POWER", direction: "in", signal: "power", connector: "iec_power" },
-    ],
-  },
-  {
-    key: "passive-delay-speaker",
-    model: "소형 패시브 딜레이 스피커",
-    category: "speaker",
-    confidence: "low",
-    note: "패시브(앰프 필요). 입력 1 + 패러렐 링크 1. 단자는 speakON 가정 — 실제에 맞게 편집.",
-    ports: [
-      { name: "INPUT", direction: "in", signal: "analog_audio", connector: "speakon" },
-      { name: "LINK", direction: "out", signal: "analog_audio", connector: "speakon" },
+      POWER,
     ],
   },
   {
     key: "behringer-f1220d",
+    typeId: "monitor_speaker",
     brand: "Behringer",
     model: "EUROLIVE F1220D",
-    category: "monitor_speaker",
     confidence: "medium",
-    note: "액티브 모니터 웨지(2채널 내장 믹서). XLR 마이크 입력 + 콤보 라인 입력 + XLR 링크 출력.",
+    note: "액티브 모니터 웨지. XLR 마이크 입력 + 콤보 라인 입력 + XLR 링크 출력.",
     ports: [
       { name: "IN", direction: "in", signal: "analog_audio", connector: "xlr_f" },
       { name: "LINE IN", direction: "in", signal: "analog_audio", connector: "combo_xlr_trs" },
       { name: "LINK OUT", direction: "out", signal: "analog_audio", connector: "xlr_m" },
-      { name: "POWER", direction: "in", signal: "power", connector: "iec_power" },
+      POWER,
     ],
   },
   {
     key: "behringer-b1200d-pro",
+    typeId: "subwoofer",
     brand: "Behringer",
     model: "B1200D-PRO",
-    category: "subwoofer",
     confidence: "high",
-    note: "액티브 서브(스테레오 크로스오버 내장). 입력 A/B, 하이패스 출력 A/B, 풀레인지 스루 A/B.",
+    note: "액티브 서브(스테레오 크로스오버). 입력 A/B, 하이패스 출력 A/B, 풀레인지 스루 A/B.",
     ports: [
       { name: "INPUT", direction: "in", signal: "analog_audio", connector: "xlr_f", count: 2 },
       { name: "OUT (하이패스)", direction: "out", signal: "analog_audio", connector: "xlr_m", count: 2 },
       { name: "THRU", direction: "out", signal: "analog_audio", connector: "xlr_m", count: 2 },
-      { name: "POWER", direction: "in", signal: "power", connector: "iec_power" },
+      POWER,
     ],
   },
 
-  // ── 비디오 (출처: Blackmagic 스펙) ──
+  // 비디오
   {
     key: "blackmagic-atem-mini-pro",
+    typeId: "video_switcher",
     brand: "Blackmagic Design",
     model: "ATEM Mini Pro",
-    category: "video_mixer",
     confidence: "high",
-    note: "HDMI 입력 4 / 출력 1, USB-C 웹캠 출력, 이더넷(스트리밍/제어), 3.5mm 마이크 입력 2.",
+    note: "HDMI 입력 4 / 출력 1, USB-C 웹캠, 이더넷, 3.5mm 마이크 입력 2.",
     ports: [
       { name: "HDMI IN", direction: "in", signal: "video", connector: "hdmi", count: 4 },
       { name: "HDMI OUT", direction: "out", signal: "video", connector: "hdmi" },
       { name: "USB-C (웹캠)", direction: "out", signal: "video", connector: "usb_c" },
       { name: "ETHERNET", direction: "bidi", signal: "network", connector: "rj45" },
       { name: "MIC IN", direction: "in", signal: "analog_audio", connector: "minijack_3p5", count: 2 },
-      { name: "DC IN", direction: "in", signal: "power", connector: "dc_power" },
-    ],
-  },
-  {
-    key: "hdmi-matrix-4x2",
-    model: "HDMI 4x2 매트릭스",
-    category: "video_matrix",
-    confidence: "medium",
-    note: "일반 HDMI 매트릭스 스위치. 입력 4 / 출력 2.",
-    ports: [
-      { name: "HDMI IN", direction: "in", signal: "video", connector: "hdmi", count: 4 },
-      { name: "HDMI OUT", direction: "out", signal: "video", connector: "hdmi", count: 2 },
-      { name: "POWER", direction: "in", signal: "power", connector: "dc_power" },
-    ],
-  },
-  {
-    key: "ptz-camera",
-    model: "PTZ 카메라",
-    category: "camera",
-    confidence: "medium",
-    note: "일반 PTZ 카메라. HDMI/SDI 출력 + 랜(PoE·제어). 실제 모델에 맞게 편집.",
-    ports: [
-      { name: "HDMI OUT", direction: "out", signal: "video", connector: "hdmi" },
-      { name: "SDI OUT", direction: "out", signal: "video", connector: "sdi_bnc" },
-      { name: "LAN (PoE/제어)", direction: "bidi", signal: "network", connector: "rj45" },
-      { name: "DC IN", direction: "in", signal: "power", connector: "dc_power" },
-    ],
-  },
-  {
-    key: "philips-projector",
-    brand: "Philips",
-    model: "빔 프로젝터",
-    category: "projector",
-    confidence: "low",
-    note: "일반 프로젝터(영상 입력 싱크). HDMI/VGA 입력. 실제 모델에 맞게 편집.",
-    ports: [
-      { name: "HDMI IN", direction: "in", signal: "video", connector: "hdmi" },
-      { name: "VGA IN", direction: "in", signal: "video", connector: "vga" },
-      { name: "POWER", direction: "in", signal: "power", connector: "iec_power" },
-    ],
-  },
-  {
-    key: "stage-monitor-tv",
-    model: "스테이지 모니터 TV",
-    category: "display",
-    confidence: "low",
-    note: "무대 모니터용 디스플레이(HDMI 입력).",
-    ports: [
-      { name: "HDMI IN", direction: "in", signal: "video", connector: "hdmi" },
-      { name: "POWER", direction: "in", signal: "power", connector: "iec_power" },
-    ],
-  },
-
-  // ── 네트워크 / 익스텐더 ──
-  {
-    key: "xlr-lan-extender",
-    model: "4ch XLR 랜 익스텐더",
-    category: "network",
-    confidence: "low",
-    routing: "snake",
-    note: "XLR 마이크 4채널을 Cat5(RJ45) 한 가닥으로 연장. 입출력 구분 없음 — 각 XLR 단자의 암/수만 개별 설정. 두 대를 RJ45로 연결해 사용. 채널 n은 RJ45를 거쳐 반대편 채널 n으로만 이어짐.",
-    ports: [
-      { name: "XLR", direction: "bidi", signal: "analog_audio", connector: "xlr_f", count: 4, channelize: true },
-      { name: "RJ45 (Cat5)", direction: "bidi", signal: "network", connector: "rj45", trunk: true },
+      DC,
     ],
   },
 ];
 
-const PRESET_BY_KEY = new Map(DEVICE_PRESETS.map((p) => [p.key, p]));
+const TYPE_BY_ID = new Map(DEVICE_TYPES.map((t) => [t.id, t]));
+const MODEL_BY_KEY = new Map(DEVICE_MODELS.map((m) => [m.key, m]));
 
-export function getPreset(key: string): DevicePreset | undefined {
-  return PRESET_BY_KEY.get(key);
+export function getType(id: string): DeviceTypeDef | undefined {
+  return TYPE_BY_ID.get(id);
+}
+
+export function getModel(key: string): DeviceModelDef | undefined {
+  return MODEL_BY_KEY.get(key);
+}
+
+export function modelsForType(typeId: string): DeviceModelDef[] {
+  return DEVICE_MODELS.filter((m) => m.typeId === typeId);
 }
 
 function slug(s: string): string {
@@ -387,13 +567,33 @@ export function expandPorts(groups: PortGroup[]): Port[] {
   return out;
 }
 
-/** 프리셋으로부터 캔버스 노드 data 생성 */
-export function deviceDataFromPreset(p: DevicePreset): DeviceData {
+/**
+ * 종류 + (선택)모델로 캔버스 노드 data 생성.
+ * modelKey 없으면 종류의 Default 포트로.
+ */
+export function deviceDataFromType(typeId: string, modelKey?: string): DeviceData | null {
+  const type = TYPE_BY_ID.get(typeId);
+  if (!type) return null;
+
+  if (modelKey) {
+    const m = MODEL_BY_KEY.get(modelKey);
+    if (m) {
+      const routing = m.routing ?? type.routing;
+      return {
+        label: `${m.brand} ${m.model}`,
+        category: type.category,
+        model: m.key,
+        ports: expandPorts(m.ports),
+        ...(routing ? { routing } : {}),
+      };
+    }
+  }
+
   return {
-    label: p.model,
-    category: p.category,
-    model: p.key,
-    ports: expandPorts(p.ports),
-    ...(p.routing ? { routing: p.routing } : {}),
+    label: type.label,
+    category: type.category,
+    model: undefined,
+    ports: expandPorts(type.defaultPorts),
+    ...(type.routing ? { routing: type.routing } : {}),
   };
 }

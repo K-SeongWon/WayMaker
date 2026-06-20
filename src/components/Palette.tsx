@@ -1,21 +1,13 @@
 "use client";
 
-import {
-  CATEGORY_META,
-  CATEGORY_ORDER,
-  DEVICE_PRESETS,
-  type DevicePreset,
-} from "@/lib/devices";
+import { DEVICE_TYPES, TYPE_GROUP_ORDER, type DeviceTypeDef } from "@/lib/devices";
 import { ZONE_COLORS, ZONE_PRESETS } from "@/lib/zones";
-import type { DeviceCategory } from "@/lib/types";
 import CategoryIcon, { CATEGORY_STYLE } from "./CategoryIcon";
 
-// 카테고리별로 그룹핑
-const GROUPED: { category: DeviceCategory; items: DevicePreset[] }[] =
-  CATEGORY_ORDER.map((category) => ({
-    category,
-    items: DEVICE_PRESETS.filter((p) => p.category === category),
-  })).filter((g) => g.items.length > 0);
+const GROUPED = TYPE_GROUP_ORDER.map((group) => ({
+  group,
+  items: DEVICE_TYPES.filter((t) => t.group === group),
+})).filter((g) => g.items.length > 0);
 
 export default function Palette() {
   return (
@@ -48,38 +40,27 @@ export default function Palette() {
         </div>
       </div>
 
-      <div className="mb-1 text-[11px] font-semibold text-gray-500">장비</div>
+      {/* 장치 종류 */}
       <div className="space-y-4">
-        {GROUPED.map((group) => (
-          <div key={group.category}>
-            <div className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold text-gray-500">
-              <CategoryIcon
-                category={group.category}
-                className={CATEGORY_STYLE[group.category].icon}
-              />
-              {CATEGORY_META[group.category].label}
-            </div>
+        {GROUPED.map((g) => (
+          <div key={g.group}>
+            <div className="mb-1 text-[11px] font-semibold text-gray-500">{g.group}</div>
             <ul className="space-y-1.5">
-              {group.items.map((preset) => (
+              {g.items.map((t: DeviceTypeDef) => (
                 <li
-                  key={preset.key}
+                  key={t.id}
                   draggable
                   onDragStart={(e) => {
-                    e.dataTransfer.setData("application/waymaker", preset.key);
+                    e.dataTransfer.setData("application/waymaker", `type:${t.id}`);
                     e.dataTransfer.effectAllowed = "move";
                   }}
-                  title={preset.note}
-                  className="cursor-grab rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-sm shadow-sm hover:border-blue-400 hover:shadow active:cursor-grabbing"
+                  className="flex cursor-grab items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-sm shadow-sm hover:border-blue-400 hover:shadow active:cursor-grabbing"
                 >
-                  <div className="font-medium text-gray-800">{preset.model}</div>
-                  <div className="text-[11px] text-gray-400">
-                    {preset.brand ? `${preset.brand} · ` : ""}
-                    {preset.confidence === "low"
-                      ? "일반형(편집)"
-                      : preset.confidence === "medium"
-                        ? "스펙 추정"
-                        : "스펙 확인"}
-                  </div>
+                  <CategoryIcon
+                    category={t.category}
+                    className={CATEGORY_STYLE[t.category].icon}
+                  />
+                  <span className="font-medium text-gray-800">{t.label}</span>
                 </li>
               ))}
             </ul>

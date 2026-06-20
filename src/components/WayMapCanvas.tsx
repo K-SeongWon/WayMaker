@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -18,7 +18,12 @@ import DeviceNode from "./DeviceNode";
 import ZoneNode from "./ZoneNode";
 import CableEdge from "./CableEdge";
 import ExportPanel from "./ExportPanel";
-import { getPreset, deviceDataFromPreset } from "@/lib/devices";
+import {
+  getType,
+  modelsForType,
+  deviceDataFromType,
+  type DeviceModelDef,
+} from "@/lib/devices";
 import { ZONE_PRESETS, ZONE_DEFAULT_SIZE } from "@/lib/zones";
 import { computeFlow } from "@/lib/flow";
 import type { DeviceNodeT, ZoneNodeT } from "@/lib/types";
@@ -26,6 +31,13 @@ import { useWayMapStore, nextDeviceId, nextZoneId } from "@/store/waymapStore";
 
 const nodeTypes: NodeTypes = { device: DeviceNode, zone: ZoneNode };
 const edgeTypes = { cable: CableEdge };
+
+interface PickerState {
+  typeId: string;
+  position: { x: number; y: number }; // flow 좌표
+  x: number; // 화면(래퍼 기준)
+  y: number;
+}
 
 function Flow() {
   const nodes = useWayMapStore((s) => s.nodes);
@@ -43,7 +55,9 @@ function Flow() {
   const toggleFlowMode = useWayMapStore((s) => s.toggleFlowMode);
   const { screenToFlowPosition } = useReactFlow();
 
-  // 신호 흐름: 흐름 모드 + 장비 선택 시, 그 장비가 연결된 경로를 계산
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [picker, setPicker] = useState<PickerState | null>(null);
+
   const flow = useMemo(() => {
     if (!flowMode || !selectedId) return null;
     const sel = nodes.find((n) => n.id === selectedId);
@@ -51,7 +65,6 @@ function Flow() {
     return computeFlow(selectedId, nodes, edges);
   }, [flowMode, selectedId, nodes, edges]);
 
-  // 표시용 엣지: 흐름 경로는 애니메이션+강조, 그 외는 디밍. 편집 선택 엣지는 파란 강조.
   const renderEdges = useMemo(
     () =>
       edges.map((e) => {
@@ -69,14 +82,11 @@ function Flow() {
     [edges, flow, selectedEdgeId],
   );
 
-  // 표시용 노드: 흐름에 포함되지 않은 노드는 디밍
   const renderNodes = useMemo(
     () =>
       flow
         ? nodes.map((n) =>
-            flow.nodeIds.has(n.id)
-              ? n
-              : { ...n, style: { ...n.style, opacity: 0.25 } },
+            flow.nodeIds.has(n.id) ? n : { ...n, style: { ...n.style, opacity: 0.25 } },
           )
         : nodes,
     [nodes, flow],
@@ -94,7 +104,7 @@ function Flow() {
       if (!key) return;
       const position = screenToFlowPosition({ x: e.clientX, y: e.clientY });
 
-      // 장소(구획) 드롭
+      // 장소(구획)
       if (key.startsWith("zone:")) {
         const preset = ZONE_PRESETS.find((p) => p.key === key.slice(5));
         if (!preset) return;
@@ -111,23 +121,59 @@ function Flow() {
         return;
       }
 
-      // 장비 드롭
-      const preset = getPreset(key);
-      if (!preset) return;
-      const node: DeviceNodeT = {
-        id: nextDeviceId(),
-        type: "device",
-        position,
-        zIndex: 1,
-        data: deviceDataFromPreset(preset),
-      };
-      addDevice(node);
+      // 장치 종류 → 모델 선택 팝업
+      if (key.startsWith("type:")) {
+        const typeId = key.slice(5);
+        if (!getType(typeId)) return;
+        const rect = wrapperRef.current?.getBoundingClientRect();
+        const x = Math.min(
+          rect ? e.clientX - rect.left : e.clientX,
+          (rect?.width ?? 9999) - 232,
+        );
+        const y = rect ? e.clientY - rect.top : e.clientY;
+        setPicker({ typeId, position, x: Math.max(8, x), y });
+      }
     },
-    [screenToFlowPosition, addDevice, addZone],
+    [screenToFlowPosition, addZone],
   );
 
+  const createDevice = useCallback(
+    (modelKey?: string) => {
+      if (!picker) return;
+      const data = deviceDataFromType(picker.typeId, modelKey);
+      if (data) {
+        const node: DeviceNodeT = {
+          id: nextDeviceId(),
+          type: "device",
+          position: picker.position,
+          zIndex: 1,
+          data,
+        };
+        addDevice(node);
+      }
+      setPicker(null);
+    },
+    [picker, addDevice],
+  );
+
+  // 모델을 제조사별로 묶기
+  const pickerModels = useMemo(() => {
+    if (!picker) return [] as { brand: string; items: DeviceModelDef[] }[];
+    const list = modelsForType(picker.typeId);
+    const order: string[] = [];
+    const by = new Map<string, DeviceModelDef[]>();
+    for (const m of list) {
+      if (!by.has(m.brand)) {
+        by.set(m.brand, []);
+        order.push(m.brand);
+      }
+      by.get(m.brand)!.push(m);
+    }
+    return order.map((b) => ({ brand: b, items: by.get(b)! }));
+  }, [picker]);
+
   return (
-    <div className="h-full w-full" onDrop={onDrop} onDragOver={onDragOver}>
+    <div ref={wrapperRef} className="relative h-full w-full" onDrop={onDrop} onDragOver={onDragOver}>
       <ReactFlow
         nodes={renderNodes}
         edges={renderEdges}
@@ -147,17 +193,64 @@ function Flow() {
         <MiniMap pannable zoomable />
         <Panel position="top-left">
           <label className="flex items-center gap-1.5 rounded-md border border-gray-200 bg-white/90 px-2 py-1 text-[11px] text-gray-600 shadow-sm backdrop-blur">
-            <input
-              type="checkbox"
-              checked={flowMode}
-              onChange={toggleFlowMode}
-            />
+            <input type="checkbox" checked={flowMode} onChange={toggleFlowMode} />
             신호 흐름 보기
             <span className="text-gray-400">(장비 클릭)</span>
           </label>
         </Panel>
         <ExportPanel />
       </ReactFlow>
+
+      {/* 모델 선택 팝업 */}
+      {picker && (
+        <>
+          <div className="absolute inset-0 z-20" onClick={() => setPicker(null)} />
+          <div
+            className="absolute z-30 max-h-[70%] w-56 overflow-y-auto rounded-lg border border-gray-200 bg-white p-1.5 text-sm shadow-xl"
+            style={{ left: picker.x, top: picker.y }}
+          >
+            <div className="px-1.5 py-1 text-xs font-semibold text-gray-700">
+              {getType(picker.typeId)?.label}
+            </div>
+            <button
+              type="button"
+              onClick={() => createDevice()}
+              className="w-full rounded-md px-2 py-1.5 text-left text-gray-700 hover:bg-blue-50"
+            >
+              기본 장치 <span className="text-[11px] text-gray-400">(Default)</span>
+            </button>
+
+            {pickerModels.map((g) => (
+              <div key={g.brand} className="mt-1">
+                <div className="px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                  {g.brand}
+                </div>
+                {g.items.map((m) => (
+                  <button
+                    key={m.key}
+                    type="button"
+                    onClick={() => createDevice(m.key)}
+                    className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-gray-700 hover:bg-blue-50"
+                  >
+                    <span>{m.model}</span>
+                    {m.confidence && m.confidence !== "high" && (
+                      <span className="text-[10px] text-gray-400">
+                        {m.confidence === "low" ? "추정" : "확인필요"}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            ))}
+
+            {pickerModels.length === 0 && (
+              <div className="px-1.5 py-1 text-[11px] text-gray-400">
+                내장 모델 없음 — 기본 장치로 추가하세요.
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
